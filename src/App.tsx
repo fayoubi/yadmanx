@@ -18,6 +18,7 @@ import RegisterForm from './components/agent/auth/RegisterForm';
 import Dashboard from './components/agent/dashboard/Dashboard';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import PageFooter from './components/common/PageFooter';
+import AiQuotePage from './components/ai-quote/AiQuotePage';
 
 function App() {
   return (
@@ -43,6 +44,9 @@ function App() {
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/" element={<QuoteForm />} />
               <Route path="/quote" element={<QuoteDisplay />} />
+
+              {/* AI Quote Route */}
+              <Route path="/ai-quote" element={<AiQuotePage />} />
 
               {/* Enrollment Routes */}
               <Route path="/enroll/*" element={

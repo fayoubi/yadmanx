@@ -31,6 +31,10 @@ const HeroHeader: React.FC<HeroHeaderProps> = ({
               <Link to="/" className="text-white/80 hover:text-white transition-colors">
                 Get Quote
               </Link>
+              <Link to="/ai-quote" className="text-white/80 hover:text-white transition-colors flex items-center gap-1">
+                <span>AI Assistant</span>
+                <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold">NEW</span>
+              </Link>
               <Link to="/about" className="text-white/80 hover:text-white transition-colors">
                 About
               </Link>

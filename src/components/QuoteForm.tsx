@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info, ChevronDown, Loader2 } from 'lucide-react';
+import { Info, ChevronDown, Loader2, Sparkles, MessageCircle } from 'lucide-react';
 import { useQuote } from '../context/QuoteContext';
 import { pricingService, PricingService } from '../services/PricingService';
 import PageLayout from './common/PageLayout';
@@ -342,6 +342,40 @@ const QuoteForm: React.FC = () => {
                 'Continue for no exam quote'
               )}
             </button>
+
+            {/* OR Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/20"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-primary-900 text-white/60 font-medium">OR</span>
+              </div>
+            </div>
+
+            {/* AI Assistant Option */}
+            <button
+              type="button"
+              onClick={() => navigate('/ai-quote')}
+              className="w-full bg-white/10 hover:bg-white/20 border-2 border-white/30 hover:border-white/50 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center gap-3 group"
+            >
+              <div className="relative">
+                <MessageCircle className="w-5 h-5" />
+                <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-300 animate-pulse" />
+              </div>
+              <span>Try AI Assistant</span>
+              <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">NEW</span>
+            </button>
+
+            {/* AI Assistant Info */}
+            <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-yellow-300 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-white/70">
+                  <span className="font-semibold text-white">Prefer to chat?</span> Our AI assistant will guide you through the process with a natural conversation.
+                </p>
+              </div>
+            </div>
           </form>
         </div>
       </div>

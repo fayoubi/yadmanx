@@ -23,6 +23,9 @@ COPY . .
 # Production stage
 FROM node:18-alpine AS production
 
+# Install curl for health checks
+RUN apk add --no-cache curl
+
 # Create app user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S enrollment -u 1001

@@ -4,6 +4,16 @@ This directory contains all technical documentation for the YadmanX life insuran
 
 ## 📚 Documentation Index
 
+### API Guides
+
+- **[AGENT_SERVICE_API.md](./AGENT_SERVICE_API.md)** - Complete Agent Service API guide
+  - All endpoints with curl examples
+  - Complete authentication flow
+  - OTP-based login walkthrough
+  - Enrollment management
+  - Error handling and troubleshooting
+  - Postman collection included
+
 ### Database & Infrastructure
 
 - **[DATABASE_ACCESS.md](./DATABASE_ACCESS.md)** - Complete guide to accessing and querying PostgreSQL databases for each service
@@ -74,6 +84,7 @@ When adding new documentation:
 ```
 documentation/
 ├── README.md                        # This file
+├── AGENT_SERVICE_API.md             # Agent Service API guide with curl examples
 ├── DATABASE_ACCESS.md               # Database access guide
 ├── REDIS_USAGE.md                   # Redis usage patterns
 ├── PRICING_INTEGRATION.md           # Pricing API integration
@@ -81,3 +92,10 @@ documentation/
 ├── IMPLEMENTATION_SUMMARY_V2.md     # Implementation overview
 └── REQUIREMENTS.md                  # Project requirements
 ```
+
+## 📦 Additional Resources
+
+### Postman Collections
+- **Agent Service**: `../agent-service/YadmanX_Agent_Service.postman_collection.json`
+
+Import into Postman for interactive API testing with automatic token management.

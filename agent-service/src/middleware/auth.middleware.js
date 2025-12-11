@@ -28,11 +28,6 @@ export const authenticateToken = async (req, res, next) => {
       throw new ApiError(401, 'Session expired or invalid');
     }
 
-    // Check agent status
-    if (sessionValidation.session.status !== 'active') {
-      throw new ApiError(403, 'Agent account is not active');
-    }
-
     // Attach agent info to request
     req.agent = {
       id: sessionValidation.session.agent_id,

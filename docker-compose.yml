@@ -107,8 +107,39 @@ services:
       - ./agent-service/db/migrations:/docker-entrypoint-initdb.d
     restart: unless-stopped
 
+  # LLM Quote Service
+  llm-quote-service:
+    build: ./llm-quote-service
+    ports:
+      - "3004:3004"
+    env_file:
+      - ./llm-quote-service/.env
+    environment:
+      - NODE_ENV=development
+      - PORT=3004
+      - PRICING_SERVICE_URL=http://pricing-service:3001
+      - REDIS_HOST=llm-quote-redis
+      - REDIS_PORT=6379
+      - SESSION_TTL=1800
+    depends_on:
+      - llm-quote-redis
+      - pricing-service
+    volumes:
+      - ./llm-quote-service:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  llm-quote-redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - llm-quote-redis-data:/data
+    restart: unless-stopped
+
 volumes:
   pricing-db-data:
   pricing-redis-data:
   enrollment-db-data:
   agent-db-data:
+  llm-quote-redis-data:

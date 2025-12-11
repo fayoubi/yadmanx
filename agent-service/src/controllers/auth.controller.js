@@ -65,11 +65,6 @@ class AuthController {
       throw new ApiError(404, 'Agent not registered');
     }
 
-    // Check if agent is active
-    if (!agent.is_active) {
-      throw new ApiError(403, 'Agent account is not active');
-    }
-
     // Create OTP
     const otp = await otpService.createOTP(agent.phone_number, 'sms');
 
@@ -102,11 +97,6 @@ class AuthController {
 
     if (!agent) {
       throw new ApiError(404, 'Agent not found');
-    }
-
-    // Check if agent is active
-    if (agent.status !== 'active') {
-      throw new ApiError(403, 'Agent account is not active');
     }
 
     // Update last login timestamp

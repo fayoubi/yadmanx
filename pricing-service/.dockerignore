@@ -16,3 +16,4 @@ tests
 docs
 .vscode
 .idea
+*collection*.json
