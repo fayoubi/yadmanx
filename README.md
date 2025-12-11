@@ -5,7 +5,7 @@ A modern React application for life insurance quotes and enrollment with contrib
 
 ## ✅ Start all services (Frontend + All Backend Services)
 
-The application consists of a React frontend and three backend microservices:
+The application consists of a React frontend and four backend microservices:
 
 ### Quick Start with Script
 
@@ -15,12 +15,17 @@ The easiest way to start everything and verify health:
 ./start-yadmanx.sh
 ```
 
+**Prerequisites:**
+- Docker and Docker Compose installed
+- Node.js and npm installed
+- `llm-quote-service/.env` file configured with your Claude API key (copy from `.env.example`)
+
 This script will:
-- Start all backend services (pricing, enrollment, agent)
-- Configure frontend environment
+- Verify required environment files exist
+- Start all backend services (pricing, enrollment, agent, llm-quote)
+- Wait for all services to be healthy
 - Start the React development server
-- Run API health checks
-- Run integration tests
+- Display service status and health checks
 
 ### Manual Start
 
@@ -39,6 +44,9 @@ This script will:
 
    # Check agent service (port 3003)
    curl http://localhost:3003/health
+
+   # Check LLM quote service (port 3004)
+   curl http://localhost:3004/api/v1/health
    ```
 
 3. **Configure frontend environment:**
@@ -46,6 +54,7 @@ This script will:
    echo "REACT_APP_PRICING_SERVICE_URL=http://localhost:3001" > .env.local
    echo "REACT_APP_ENROLLMENT_SERVICE_URL=http://localhost:3002" >> .env.local
    echo "REACT_APP_AGENT_SERVICE_URL=http://localhost:3003" >> .env.local
+   echo "REACT_APP_LLM_QUOTE_SERVICE_URL=http://localhost:3004" >> .env.local
    echo "REACT_APP_ENV=development" >> .env.local
    ```
 
@@ -60,13 +69,15 @@ This script will:
 - **Pricing Service**: http://localhost:3001
 - **Enrollment Service**: http://localhost:3002
 - **Agent Service**: http://localhost:3003
+- **LLM Quote Service** (AI-powered quotes): http://localhost:3004
 
 ### Databases
 
 - **Pricing DB**: PostgreSQL on port 5432
 - **Enrollment DB**: PostgreSQL on port 5433
 - **Agent DB**: PostgreSQL on port 5434
-- **Redis Cache**: port 6379
+- **Pricing Redis Cache**: port 6379
+- **LLM Quote Redis Cache**: port 6380
 
 #### Quick psql Access
 
@@ -105,6 +116,7 @@ To run the complete application locally, you need both the frontend and all back
    echo "REACT_APP_PRICING_SERVICE_URL=http://localhost:3001" > .env.local
    echo "REACT_APP_ENROLLMENT_SERVICE_URL=http://localhost:3002" >> .env.local
    echo "REACT_APP_AGENT_SERVICE_URL=http://localhost:3003" >> .env.local
+   echo "REACT_APP_LLM_QUOTE_SERVICE_URL=http://localhost:3004" >> .env.local
    echo "REACT_APP_ENV=development" >> .env.local
    ```
 
@@ -133,6 +145,13 @@ This validates:
 - Age, height, weight, and location-based pricing
 - Nicotine use consideration
 - Instant quote generation
+
+### ✅ AI-Powered Quote Generation (New!)
+- Conversational interface for gathering quote information
+- Natural language processing using Claude AI
+- Progressive data collection with intelligent follow-up questions
+- Automatic quote calculation upon completion
+- Accessible via `/ai-quote` route
 
 ### ✅ Contribution Management
 - Payment frequency selection (Monthly, Quarterly, Bi-annual, Annual)
@@ -172,18 +191,34 @@ This validates:
 
 ### Environment Variables
 
-Create a `.env.local` file:
+Create a `.env.local` file for the frontend:
 ```
 REACT_APP_PRICING_SERVICE_URL=http://localhost:3001
+REACT_APP_ENROLLMENT_SERVICE_URL=http://localhost:3002
+REACT_APP_AGENT_SERVICE_URL=http://localhost:3003
+REACT_APP_LLM_QUOTE_SERVICE_URL=http://localhost:3004
 REACT_APP_ENV=development
+```
+
+Configure `llm-quote-service/.env` (required for AI quotes):
+```
+CLAUDE_API_KEY=your_claude_api_key_here
+CLAUDE_MODEL=claude-3-5-haiku-20241022
 ```
 
 ### API Endpoints
 
-The pricing service provides:
+**Pricing Service** (port 3001):
 - `GET /api/v1/health` - Health check
 - `POST /api/v1/quotes/calculate` - Quote calculation
 - `POST /api/v1/contributions/validate` - Contribution validation
+
+**LLM Quote Service** (port 3004):
+- `GET /api/v1/health` - Health check
+- `POST /api/v1/conversations` - Create new conversation
+- `POST /api/v1/conversations/:id/message` - Send message
+- `POST /api/v1/conversations/:id/confirm` - Confirm and calculate quote
+- `GET /api/v1/conversations/:id/summary` - Get conversation summary
 
 ## 🚨 Troubleshooting
 
