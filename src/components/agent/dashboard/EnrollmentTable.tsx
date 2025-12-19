@@ -76,31 +76,30 @@ const EnrollmentTable: React.FC = () => {
     if (!token) return;
 
     try {
-      // Create new enrollment
-      const response = await fetch('http://localhost:3002/api/v1/enrollments', {
+      // Create new enrollment via agent-service (same as Dashboard button)
+      const response = await fetch('http://localhost:3003/api/v1/agents/enrollments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          status: 'Draft',
-        }),
+        body: JSON.stringify({}),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create enrollment');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create enrollment');
       }
 
       const data = await response.json();
-      const enrollmentId = data.enrollment_id || data.id;
+      const enrollmentId = data.enrollment?.id || data.data?.id || data.id;
 
       // Store enrollment ID and navigate to enrollment flow
       sessionStorage.setItem('current_enrollment_id', enrollmentId);
       navigate('/enroll/start');
     } catch (err: any) {
       console.error('Error creating enrollment:', err);
-      alert('Failed to start new application. Please try again.');
+      alert(`Failed to start new application: ${err.message}`);
     }
   };
 

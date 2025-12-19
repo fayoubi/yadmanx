@@ -1,0 +1,922 @@
+{
+	"info": {
+		"_postman_id": "yadmanx-pricing-service-001",
+		"name": "YadmanX Pricing Service API",
+		"description": "Multi-Product Insurance Pricing Microservice for YadmanX\n\n**Features:**\n- Term Life Insurance pricing (MVP)\n- Multi-product architecture ready for Whole Life, Annuities\n- Risk assessment and underwriting flags\n- Redis caching for performance\n- Prometheus metrics integration\n- Feature flag management\n\n**Base URL:** http://localhost:3001\n\n**Rate Limiting:** 100 requests per 15-minute window per IP\n\n**Response Time:** Typically < 500ms",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3001",
+			"type": "string"
+		},
+		{
+			"key": "quoteId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Service Info",
+			"item": [
+				{
+					"name": "Get Service Information",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Get basic service information and status including enabled features and documentation links."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/",
+									"host": ["{{baseUrl}}"],
+									"path": [""]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"service\": \"Pricing Service\",\n    \"version\": \"1.0.0\",\n    \"environment\": \"development\",\n    \"timestamp\": \"2024-01-15T10:30:00.000Z\",\n    \"features\": [\"term_life\"],\n    \"documentation\": \"/api/docs\"\n}"
+						}
+					]
+				}
+			],
+			"description": "Service metadata and root endpoint"
+		},
+		{
+			"name": "Health Checks",
+			"item": [
+				{
+					"name": "Basic Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "health"]
+						},
+						"description": "Quick health check endpoint for load balancers. Returns basic service health status."
+					},
+					"response": [
+						{
+							"name": "Healthy",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/health",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "health"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"status\": \"healthy\",\n    \"timestamp\": \"2024-01-15T10:30:00.000Z\",\n    \"uptime\": 3600.5,\n    \"version\": \"1.0.0\",\n    \"environment\": \"development\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Deep Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/health/deep",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "health", "deep"]
+						},
+						"description": "Comprehensive health check including database and Redis connectivity. Use this to diagnose system issues."
+					},
+					"response": [
+						{
+							"name": "All Systems Healthy",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/health/deep",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "health", "deep"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"status\": \"healthy\",\n    \"timestamp\": \"2024-01-15T10:30:00.000Z\",\n    \"uptime\": 3600.5,\n    \"version\": \"1.0.0\",\n    \"environment\": \"development\",\n    \"checks\": {\n        \"database\": {\n            \"status\": \"healthy\",\n            \"responseTime\": 15\n        },\n        \"redis\": {\n            \"status\": \"healthy\",\n            \"responseTime\": 5\n        },\n        \"featureFlags\": {\n            \"status\": \"healthy\",\n            \"enabledProducts\": [\"term_life\"]\n        }\n    }\n}"
+						},
+						{
+							"name": "Degraded - Redis Down",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/health/deep",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "health", "deep"]
+								}
+							},
+							"status": "Service Unavailable",
+							"code": 503,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"status\": \"degraded\",\n    \"timestamp\": \"2024-01-15T10:30:00.000Z\",\n    \"uptime\": 3600.5,\n    \"checks\": {\n        \"database\": {\n            \"status\": \"healthy\",\n            \"responseTime\": 15\n        },\n        \"redis\": {\n            \"status\": \"failed\",\n            \"error\": \"Redis not connected\"\n        },\n        \"featureFlags\": {\n            \"status\": \"healthy\",\n            \"enabledProducts\": [\"term_life\"]\n        }\n    }\n}"
+						}
+					]
+				}
+			],
+			"description": "Service health monitoring endpoints"
+		},
+		{
+			"name": "Products",
+			"item": [
+				{
+					"name": "List Available Products",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/products",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "products"]
+						},
+						"description": "Get list of all available insurance products based on feature flags. Products can be enabled/disabled via environment variables."
+					},
+					"response": [
+						{
+							"name": "Products List",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/products",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "products"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"products\": [\n        {\n            \"product_type\": \"term_life\",\n            \"display_name\": \"Term Life Insurance\",\n            \"is_active\": true,\n            \"configuration\": {\n                \"minAge\": 18,\n                \"maxAge\": 65,\n                \"minCoverage\": 250000,\n                \"maxCoverage\": 1500000,\n                \"termLengths\": [10, 20]\n            }\n        }\n    ]\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Product Configuration - Term Life",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/products/term_life",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "products", "term_life"]
+						},
+						"description": "Get detailed configuration for Term Life Insurance product type."
+					},
+					"response": [
+						{
+							"name": "Term Life Configuration",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/products/term_life",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "products", "term_life"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"product\": {\n        \"product_type\": \"term_life\",\n        \"display_name\": \"Term Life Insurance\",\n        \"is_active\": true,\n        \"configuration\": {\n            \"minAge\": 18,\n            \"maxAge\": 65,\n            \"minCoverage\": 250000,\n            \"maxCoverage\": 1500000,\n            \"termLengths\": [10, 20],\n            \"riskClasses\": [\n                \"SuperPreferredPlus\",\n                \"SuperPreferred\",\n                \"PreferredPlus\",\n                \"Preferred\",\n                \"StandardPlus\",\n                \"Standard\",\n                \"Substandard\"\n            ]\n        }\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Product Configuration - Whole Life (Disabled)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/products/whole_life",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "products", "whole_life"]
+						},
+						"description": "Attempt to get configuration for Whole Life product (currently disabled by feature flag)."
+					},
+					"response": [
+						{
+							"name": "Product Disabled",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/products/whole_life",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "products", "whole_life"]
+								}
+							},
+							"status": "Forbidden",
+							"code": 403,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"error\": \"Product not available\",\n    \"message\": \"Whole Life product is not currently enabled\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Product Configuration - Invalid Type",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/products/invalid_product",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "products", "invalid_product"]
+						},
+						"description": "Test error handling for invalid product type."
+					},
+					"response": [
+						{
+							"name": "Invalid Product Type",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/products/invalid_product",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "products", "invalid_product"]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"error\": \"Invalid product type\",\n    \"validTypes\": [\"term_life\", \"whole_life\", \"annuity\"]\n}"
+						}
+					]
+				}
+			],
+			"description": "Product configuration and discovery"
+		},
+		{
+			"name": "Quotes",
+			"item": [
+				{
+					"name": "Calculate Quote - Healthy Male (20-year term)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Extract quoteId and save to collection variable",
+									"var jsonData = pm.response.json();",
+									"if (jsonData.quote && jsonData.quote.quoteId) {",
+									"    pm.collectionVariables.set('quoteId', jsonData.quote.quoteId);",
+									"    console.log('Saved quoteId:', jsonData.quote.quoteId);",
+									"}",
+									"",
+									"// Basic response validation",
+									"pm.test('Response status is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Quote contains required fields', function () {",
+									"    pm.expect(jsonData.quote).to.have.property('quoteId');",
+									"    pm.expect(jsonData.quote).to.have.property('productType');",
+									"    pm.expect(jsonData.quote).to.have.property('pricing');",
+									"    pm.expect(jsonData.quote).to.have.property('riskAssessment');",
+									"    pm.expect(jsonData.quote).to.have.property('eligibilityFlags');",
+									"});",
+									"",
+									"pm.test('Pricing contains monthly and annual premiums', function () {",
+									"    pm.expect(jsonData.quote.pricing.monthlyPremium).to.be.a('number');",
+									"    pm.expect(jsonData.quote.pricing.annualPremium).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1985-03-15\",\n        \"height\": 180,\n        \"weight\": 75,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 500000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Calculate a term life insurance quote for a healthy male applicant.\n\n**Applicant Profile:**\n- Gender: Male\n- Age: ~39 years (born 1985)\n- BMI: ~23.1 (healthy)\n- Non-smoker\n- Location: Casablanca\n\n**Policy:**\n- Term: 20 years\n- Coverage: $500,000 (qualifies for 5% volume discount)"
+					},
+					"response": [
+						{
+							"name": "Quote Calculated Successfully",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1985-03-15\",\n        \"height\": 180,\n        \"weight\": 75,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 500000\n    }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "quotes", "calculate"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"quote\": {\n        \"quoteId\": \"quote_term_1705312200000_abc123\",\n        \"productType\": \"term_life\",\n        \"pricing\": {\n            \"monthlyPremium\": 45.50,\n            \"annualPremium\": 546.00\n        },\n        \"riskAssessment\": {\n            \"riskClass\": \"SuperPreferred\",\n            \"bmi\": 23.1,\n            \"age\": 39,\n            \"riskFactors\": []\n        },\n        \"eligibilityFlags\": {\n            \"wouldDeclinePostUnderwriting\": false,\n            \"requiresAdditionalUnderwriting\": false\n        },\n        \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n        \"expiresAt\": \"2024-02-14T10:30:00.000Z\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Calculate Quote - Female Smoker (10-year term)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"",
+									"pm.test('Response status is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Quote reflects nicotine penalty', function () {",
+									"    // Smoking should increase premiums significantly",
+									"    pm.expect(jsonData.quote.pricing.monthlyPremium).to.be.above(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Female\",\n        \"birthDate\": \"1990-07-22\",\n        \"height\": 165,\n        \"weight\": 60,\n        \"city\": \"Rabat\",\n        \"usesNicotine\": true\n    },\n    \"policy\": {\n        \"termLength\": 10,\n        \"coverageAmount\": 1000000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Calculate a term life insurance quote for a female smoker.\n\n**Applicant Profile:**\n- Gender: Female (typically 10-15% lower rates)\n- Age: ~34 years (born 1990)\n- BMI: ~22.0 (healthy)\n- Smoker (75% nicotine penalty applied)\n- Location: Rabat\n\n**Policy:**\n- Term: 10 years\n- Coverage: $1,000,000 (qualifies for 10% volume discount)"
+					},
+					"response": [
+						{
+							"name": "Female Smoker Quote",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Female\",\n        \"birthDate\": \"1990-07-22\",\n        \"height\": 165,\n        \"weight\": 60,\n        \"city\": \"Rabat\",\n        \"usesNicotine\": true\n    },\n    \"policy\": {\n        \"termLength\": 10,\n        \"coverageAmount\": 1000000\n    }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "quotes", "calculate"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"quote\": {\n        \"quoteId\": \"quote_term_1705312200001_def456\",\n        \"productType\": \"term_life\",\n        \"pricing\": {\n            \"monthlyPremium\": 112.75,\n            \"annualPremium\": 1353.00\n        },\n        \"riskAssessment\": {\n            \"riskClass\": \"Standard\",\n            \"bmi\": 22.0,\n            \"age\": 34,\n            \"riskFactors\": [\"Nicotine use\"]\n        },\n        \"eligibilityFlags\": {\n            \"wouldDeclinePostUnderwriting\": false,\n            \"requiresAdditionalUnderwriting\": false\n        },\n        \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n        \"expiresAt\": \"2024-02-14T10:30:00.000Z\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Calculate Quote - High Risk (Obese Applicant)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"",
+									"pm.test('Response status is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('High BMI flags additional underwriting', function () {",
+									"    pm.expect(jsonData.quote.riskAssessment.riskClass).to.equal('Substandard');",
+									"    pm.expect(jsonData.quote.eligibilityFlags.wouldDeclinePostUnderwriting).to.equal(true);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1985-03-15\",\n        \"height\": 180,\n        \"weight\": 150,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 500000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Calculate a quote for a high-risk applicant with severe obesity.\n\n**Applicant Profile:**\n- Gender: Male\n- Age: ~39 years\n- BMI: ~46.3 (severe obesity, BMI > 40 triggers decline)\n- Non-smoker\n\n**Expected Result:**\n- Risk Class: Substandard\n- wouldDeclinePostUnderwriting: true\n- Risk factors include 'Severe obesity'"
+					},
+					"response": [
+						{
+							"name": "High Risk - Would Decline",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1985-03-15\",\n        \"height\": 180,\n        \"weight\": 150,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 500000\n    }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "quotes", "calculate"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"quote\": {\n        \"quoteId\": \"quote_term_1705312200002_ghi789\",\n        \"productType\": \"term_life\",\n        \"pricing\": {\n            \"monthlyPremium\": 185.00,\n            \"annualPremium\": 2220.00\n        },\n        \"riskAssessment\": {\n            \"riskClass\": \"Substandard\",\n            \"bmi\": 46.3,\n            \"age\": 39,\n            \"riskFactors\": [\"Severe obesity\"]\n        },\n        \"eligibilityFlags\": {\n            \"wouldDeclinePostUnderwriting\": true,\n            \"requiresAdditionalUnderwriting\": true,\n            \"declineReasons\": [\"BMI exceeds maximum threshold\"]\n        },\n        \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n        \"expiresAt\": \"2024-02-14T10:30:00.000Z\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "Calculate Quote - Minimum Coverage",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Female\",\n        \"birthDate\": \"1995-01-01\",\n        \"height\": 160,\n        \"weight\": 55,\n        \"city\": \"Marrakech\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 10,\n        \"coverageAmount\": 250000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Calculate quote with minimum coverage amount ($250,000).\n\n**Applicant Profile:**\n- Young healthy female\n- Age: ~29 years\n- BMI: ~21.5 (healthy)\n- Non-smoker\n\n**Policy:**\n- Minimum term: 10 years\n- Minimum coverage: $250,000 (no volume discount)"
+					},
+					"response": []
+				},
+				{
+					"name": "Calculate Quote - Maximum Coverage",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1980-06-15\",\n        \"height\": 175,\n        \"weight\": 80,\n        \"city\": \"Fez\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 1500000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Calculate quote with maximum coverage amount ($1,500,000).\n\n**Applicant Profile:**\n- Middle-aged male\n- Age: ~44 years\n- BMI: ~26.1 (slightly overweight)\n- Non-smoker\n\n**Policy:**\n- Maximum term: 20 years\n- Maximum coverage: $1,500,000 (10% volume discount applied)"
+					},
+					"response": []
+				},
+				{
+					"name": "Retrieve Quote by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response status is 200 or 404', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 404, 410]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/{{quoteId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "{{quoteId}}"]
+						},
+						"description": "Retrieve a previously calculated quote by its unique identifier.\n\n**Note:** The quoteId is automatically saved from the 'Calculate Quote - Healthy Male' request if you run it first.\n\n**Possible Responses:**\n- 200: Quote found\n- 404: Quote not found\n- 410: Quote expired (quotes valid for 30 days)"
+					},
+					"response": [
+						{
+							"name": "Quote Found",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/quotes/quote_term_1705312200000_abc123",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "quotes", "quote_term_1705312200000_abc123"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"quote\": {\n        \"quoteId\": \"quote_term_1705312200000_abc123\",\n        \"productType\": \"term_life\",\n        \"pricing\": {\n            \"monthlyPremium\": 45.50,\n            \"annualPremium\": 546.00\n        },\n        \"riskAssessment\": {\n            \"riskClass\": \"SuperPreferred\",\n            \"bmi\": 23.1,\n            \"age\": 39,\n            \"riskFactors\": []\n        },\n        \"eligibilityFlags\": {\n            \"wouldDeclinePostUnderwriting\": false,\n            \"requiresAdditionalUnderwriting\": false\n        },\n        \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n        \"expiresAt\": \"2024-02-14T10:30:00.000Z\"\n    }\n}"
+						},
+						{
+							"name": "Quote Not Found",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/quotes/invalid_quote_id",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "quotes", "invalid_quote_id"]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"error\": \"Quote not found\",\n    \"quoteId\": \"invalid_quote_id\"\n}"
+						},
+						{
+							"name": "Quote Expired",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/quotes/quote_term_expired",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "quotes", "quote_term_expired"]
+								}
+							},
+							"status": "Gone",
+							"code": 410,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"error\": \"Quote expired\",\n    \"quoteId\": \"quote_term_expired\",\n    \"expiredAt\": \"2024-01-01T10:30:00.000Z\"\n}"
+						}
+					]
+				}
+			],
+			"description": "Quote calculation and retrieval operations"
+		},
+		{
+			"name": "Validation Error Cases",
+			"item": [
+				{
+					"name": "Missing Required Fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response status is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Error response contains validation details', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.equal('Validation failed');",
+									"    pm.expect(jsonData.details).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Test validation when required fields are missing.\n\n**Missing:**\n- applicant.birthDate\n- applicant.height\n- applicant.weight\n- applicant.city\n- applicant.usesNicotine\n- policy object"
+					},
+					"response": [
+						{
+							"name": "Validation Error",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\"\n    }\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "quotes", "calculate"]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"body": "{\n    \"error\": \"Validation failed\",\n    \"details\": [\n        {\n            \"field\": \"applicant.birthDate\",\n            \"message\": \"Birth date is required\"\n        },\n        {\n            \"field\": \"applicant.height\",\n            \"message\": \"Height is required\"\n        },\n        {\n            \"field\": \"applicant.weight\",\n            \"message\": \"Weight is required\"\n        },\n        {\n            \"field\": \"policy\",\n            \"message\": \"Policy details are required\"\n        }\n    ]\n}"
+						}
+					]
+				},
+				{
+					"name": "Invalid Product Type",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response status is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Error mentions invalid product type', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.equal('Validation failed');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"invalid_product\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1985-03-15\",\n        \"height\": 180,\n        \"weight\": 75,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 500000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Test validation when an invalid product type is provided.\n\nValid types: term_life, whole_life, annuity"
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Term Length",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response status is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1985-03-15\",\n        \"height\": 180,\n        \"weight\": 75,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 15,\n        \"coverageAmount\": 500000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Test validation for invalid term length.\n\nValid term lengths: 10 or 20 years only"
+					},
+					"response": []
+				},
+				{
+					"name": "Coverage Amount Below Minimum",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response status is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Error mentions coverage amount', function () {",
+									"    var jsonData = pm.response.json();",
+									"    var hasError = jsonData.details && jsonData.details.some(d => d.message.includes('Coverage amount') || d.message.includes('$250,000'));",
+									"    pm.expect(hasError || jsonData.error.includes('Coverage')).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1985-03-15\",\n        \"height\": 180,\n        \"weight\": 75,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 100000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Test validation for coverage amount below minimum.\n\nMinimum coverage: $250,000\nMaximum coverage: $1,500,000"
+					},
+					"response": []
+				},
+				{
+					"name": "Coverage Amount Above Maximum",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1985-03-15\",\n        \"height\": 180,\n        \"weight\": 75,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 2000000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Test validation for coverage amount above maximum.\n\nMinimum coverage: $250,000\nMaximum coverage: $1,500,000"
+					},
+					"response": []
+				},
+				{
+					"name": "Applicant Too Young (Under 18)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response status is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"2010-01-01\",\n        \"height\": 170,\n        \"weight\": 60,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 500000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Test validation for applicant under minimum age.\n\nMinimum age: 18 years\nMaximum age: 65 years"
+					},
+					"response": []
+				},
+				{
+					"name": "Applicant Too Old (Over 65)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productType\": \"term_life\",\n    \"applicant\": {\n        \"gender\": \"Male\",\n        \"birthDate\": \"1950-01-01\",\n        \"height\": 175,\n        \"weight\": 80,\n        \"city\": \"Casablanca\",\n        \"usesNicotine\": false\n    },\n    \"policy\": {\n        \"termLength\": 20,\n        \"coverageAmount\": 500000\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/quotes/calculate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "quotes", "calculate"]
+						},
+						"description": "Test validation for applicant over maximum age.\n\nMinimum age: 18 years\nMaximum age: 65 years"
+					},
+					"response": []
+				}
+			],
+			"description": "Test cases for input validation and error handling"
+		},
+		{
+			"name": "Metrics",
+			"item": [
+				{
+					"name": "Get Prometheus Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/metrics",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "metrics"]
+						},
+						"description": "Get Prometheus-formatted metrics for monitoring.\n\n**Available Metrics:**\n- `pricing_service_quotes_generated_total` - Total quotes by product/risk class\n- `pricing_service_request_duration_seconds` - Request latency histogram\n- `pricing_service_errors_total` - Error count by type\n- `pricing_service_cache_operations_total` - Cache hit/miss rates\n\n**Note:** Metrics are only available if the `metrics_collection` feature flag is enabled."
+					},
+					"response": [
+						{
+							"name": "Prometheus Metrics",
+							"originalRequest": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/metrics",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "metrics"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "text",
+							"body": "# HELP pricing_service_quotes_generated_total Total number of quotes generated\n# TYPE pricing_service_quotes_generated_total counter\npricing_service_quotes_generated_total{product_type=\"term_life\",risk_class=\"SuperPreferredPlus\",status=\"success\"} 42\npricing_service_quotes_generated_total{product_type=\"term_life\",risk_class=\"SuperPreferred\",status=\"success\"} 35\npricing_service_quotes_generated_total{product_type=\"term_life\",risk_class=\"Standard\",status=\"success\"} 18\n\n# HELP pricing_service_request_duration_seconds Request duration histogram\n# TYPE pricing_service_request_duration_seconds histogram\npricing_service_request_duration_seconds_bucket{le=\"0.1\"} 85\npricing_service_request_duration_seconds_bucket{le=\"0.5\"} 98\npricing_service_request_duration_seconds_bucket{le=\"1\"} 100\npricing_service_request_duration_seconds_sum 12.5\npricing_service_request_duration_seconds_count 100"
+						}
+					]
+				}
+			],
+			"description": "Prometheus metrics endpoint for monitoring"
+		}
+	]
+}

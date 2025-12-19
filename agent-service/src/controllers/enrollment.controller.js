@@ -117,30 +117,31 @@ class EnrollmentController {
         throw new ApiError(404, 'Agent not found');
       }
 
-      // Sync agent to enrollment-service first
+      // Sync agent to enrollment-service first (with retry logic)
       const enrollmentServiceUrl = process.env.ENROLLMENT_SERVICE_URL || 'http://localhost:3002';
 
-      // Try to sync agent (this will create or update the agent in enrollment-service)
+      console.log(`[Agent Sync] Starting sync for agent ${agent.id} (${agent.first_name} ${agent.last_name})`);
+
       try {
-        await fetch(`${enrollmentServiceUrl}/api/v1/agents/sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id: agent.id,
-            first_name: agent.first_name,
-            last_name: agent.last_name,
-            email: agent.email,
-            license_number: agent.license_number,
-          }),
-        });
+        await this.syncAgentWithRetry(enrollmentServiceUrl, agent);
+        console.log(`[Agent Sync] ✓ Successfully synced agent ${agent.id}`);
       } catch (syncError) {
-        console.error('Warning: Failed to sync agent to enrollment-service:', syncError);
-        // Continue anyway - the foreign key error will be caught below
+        console.error(`[Agent Sync] ✗ Failed to sync agent ${agent.id} after retries:`, {
+          error: syncError.message,
+          agent: {
+            id: agent.id,
+            name: `${agent.first_name} ${agent.last_name}`,
+            email: agent.email,
+            phone: agent.phone_number
+          }
+        });
+        // Throw error - don't continue if sync fails
+        throw new ApiError(500, `Failed to sync agent data: ${syncError.message}`);
       }
 
       // Call enrollment-service API to create enrollment
+      console.log(`[Enrollment Creation] Creating enrollment for agent ${agent.id}`);
+
       const response = await fetch(`${enrollmentServiceUrl}/api/v1/enrollments`, {
         method: 'POST',
         headers: {
@@ -152,10 +153,16 @@ class EnrollmentController {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error(`[Enrollment Creation] ✗ Failed to create enrollment:`, {
+          status: response.status,
+          error: errorData.error,
+          agentId: agent.id
+        });
         throw new ApiError(response.status, errorData.error || 'Failed to create enrollment');
       }
 
       const data = await response.json();
+      console.log(`[Enrollment Creation] ✓ Successfully created enrollment ${data.data?.id || data.enrollment?.id}`);
 
       res.status(201).json({
         success: true,
@@ -165,10 +172,65 @@ class EnrollmentController {
       if (error instanceof ApiError) {
         throw error;
       }
-      console.error('Error creating enrollment:', error);
+      console.error('[Enrollment Creation] Unexpected error:', error);
       throw new ApiError(500, 'Failed to create enrollment. Please try again later.');
     }
   });
+
+  /**
+   * Sync agent to enrollment-service with retry logic
+   * @private
+   */
+  async syncAgentWithRetry(enrollmentServiceUrl, agent, maxRetries = 3) {
+    const delays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(`[Agent Sync] Attempt ${attempt + 1}/${maxRetries} for agent ${agent.id}`);
+
+        const response = await fetch(`${enrollmentServiceUrl}/api/v1/agents/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: agent.id,
+            first_name: agent.first_name,
+            last_name: agent.last_name,
+            email: agent.email,
+            phone: agent.phone_number,
+            license_number: agent.license_number,
+            agency_name: agent.agency_name || 'Default Agency',
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`Sync failed: ${errorData.error || errorData.details || response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log(`[Agent Sync] Response from enrollment-service:`, {
+          success: data.success,
+          agentId: data.agent?.id
+        });
+
+        return data; // Success!
+      } catch (error) {
+        const isLastAttempt = attempt === maxRetries - 1;
+
+        if (isLastAttempt) {
+          console.error(`[Agent Sync] All ${maxRetries} attempts failed for agent ${agent.id}`);
+          throw error;
+        }
+
+        // Wait before retrying
+        const delay = delays[attempt];
+        console.warn(`[Agent Sync] Attempt ${attempt + 1} failed: ${error.message}. Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
 }
 
 export default new EnrollmentController();

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAgentAuth } from '../context/AgentAuthContext';
 import {
   Calculator,
   CheckCircle,
@@ -42,6 +43,7 @@ const EnhancedContributionForm: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const enrollmentId = searchParams.get('enrollmentId');
+  const { token } = useAgentAuth();
 
   // Section 1: Contribution Details (existing functionality)
   const [formData, setFormData] = useState<EnhancedContributionFormData>({
@@ -335,7 +337,7 @@ const EnhancedContributionForm: React.FC = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-agent-id': '11111111-1111-1111-1111-111111111111'
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(billingData)
         });
@@ -351,7 +353,7 @@ const EnhancedContributionForm: React.FC = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-agent-id': '11111111-1111-1111-1111-111111111111'
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
             contribution: formData,

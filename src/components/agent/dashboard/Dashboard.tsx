@@ -18,27 +18,7 @@ const Dashboard: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          customer: {
-            cin: `TEMP-${Date.now()}`,
-            first_name: 'To',
-            last_name: 'Complete',
-            date_of_birth: '1990-01-01',
-            email: 'temp@placeholder.com',
-            phone: '000000000',
-            address: {
-              street: 'To be completed',
-              city: 'To be completed',
-              country: 'Morocco',
-            }
-          },
-          plan_id: '00000000-0000-0000-0000-000000000001',
-          effective_date: new Date().toISOString().split('T')[0],
-          metadata: {
-            created_from: 'dashboard',
-            to_be_completed: true
-          }
-        }),
+        body: JSON.stringify({}),
       });
 
       if (!response.ok) {

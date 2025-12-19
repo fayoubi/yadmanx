@@ -16,6 +16,9 @@ class TokenService {
       phoneNumber: agent.phone_number,
       email: agent.email,
       licenseNumber: agent.license_number,
+      firstName: agent.first_name,
+      lastName: agent.last_name,
+      agencyName: agent.agency_name,
     };
 
     const token = jwt.sign(payload, this.JWT_SECRET, {
