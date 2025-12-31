@@ -95,6 +95,7 @@ services:
     restart: unless-stopped
 
   agent-db:
+    container_name: yadmanx-agent-db
     image: postgres:15
     environment:
       - POSTGRES_DB=agent
