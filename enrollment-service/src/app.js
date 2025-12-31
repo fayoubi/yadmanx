@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
-import enrollmentRoutes from './routes/enrollment.routes.js';
+import enrollmentRoutes from './routes/enrollment.routes.v2.js';
 import agentRoutes from './routes/agent.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import pool from './config/database.js';
