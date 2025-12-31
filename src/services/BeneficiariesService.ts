@@ -79,31 +79,26 @@ export class BeneficiariesService {
         display_order: index + 1,
       }));
 
-      // Call actual enrollment service API
-      const response = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}/beneficiaries`, {
-        method: 'POST',
+      // Save beneficiaries using V2 PUT endpoint
+      const agentId = sessionStorage.getItem('agent_id') || '11111111-1111-1111-1111-111111111111';
+
+      const response = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-agent-id': '11111111-1111-1111-1111-111111111111'
+          'x-agent-id': agentId
         },
-        body: JSON.stringify({ beneficiaries: beneficiaryData }),
+        body: JSON.stringify({
+          beneficiaries: beneficiaryData
+        })
       });
 
-      const apiResult = await response.json();
-
-      if (!response.ok || !apiResult.success) {
+      if (!response.ok) {
+        const apiResult = await response.json();
         throw new Error(apiResult.error || `HTTP error! status: ${response.status}`);
       }
 
-      // Also save step data
-      await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}/steps/beneficiaries`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-agent-id': '11111111-1111-1111-1111-111111111111'
-        },
-        body: JSON.stringify({ beneficiaries: beneficiaryData })
-      });
+      const apiResult = await response.json();
 
       const result: BeneficiariesResponse = {
         success: true,

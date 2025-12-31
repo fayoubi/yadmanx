@@ -559,6 +559,38 @@ const InsuranceForm: React.FC = () => {
     loadEnrollmentData();
   }, []);
 
+  // Auto-save when user returns from next step
+  useEffect(() => {
+    const autoSave = async () => {
+      const enrollmentId = sessionStorage.getItem('current_enrollment_id');
+      const agentId = sessionStorage.getItem('agent_id') || '11111111-1111-1111-1111-111111111111';
+
+      // Only auto-save if we have an enrollment ID and form has data
+      if (enrollmentId && formData.subscriber.firstName) {
+        try {
+          await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-agent-id': agentId
+            },
+            body: JSON.stringify({
+              personalInfo: {
+                subscriber: formData.subscriber,
+                insured: formData.insured,
+                insuredSameAsSubscriber
+              }
+            })
+          });
+        } catch (error) {
+          console.error('Auto-save failed:', error);
+        }
+      }
+    };
+
+    autoSave();
+  }, [formData, insuredSameAsSubscriber]);
+
   // Load prepopulation data on component mount
   useEffect(() => {
     const prepopulationData = prepopulationUtils.getPrepopulationData();
@@ -701,19 +733,25 @@ const InsuranceForm: React.FC = () => {
         sessionStorage.setItem('current_enrollment_id', enrollmentId);
       }
 
-      // Save step data
-      await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}/steps/customer_info`, {
-        method: 'POST',
+      // Save step data using V2 PUT endpoint
+      const updateResponse = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'x-agent-id': '11111111-1111-1111-1111-111111111111'
         },
         body: JSON.stringify({
-          subscriber: formData.subscriber,
-          insured: formData.insured,
-          insuredSameAsSubscriber
+          personalInfo: {
+            subscriber: formData.subscriber,
+            insured: formData.insured,
+            insuredSameAsSubscriber
+          }
         })
       });
+
+      if (!updateResponse.ok) {
+        throw new Error('Failed to save personal information');
+      }
 
       // Navigate to contribution page with enrollmentId
       window.location.href = `/enroll/contribution?enrollmentId=${enrollmentId}`;
