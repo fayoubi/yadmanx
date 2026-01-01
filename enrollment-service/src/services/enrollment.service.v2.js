@@ -1,5 +1,6 @@
 import pool from '../config/database.js';
 import { ApiError } from '../middleware/errorHandler.js';
+import customerJsonbService from './customer.jsonb.service.js';
 
 /**
  * Enrollment Service V2 - JSONB-based, No Status, Always Editable
@@ -41,14 +42,16 @@ class EnrollmentServiceV2 {
         e.data,
         e.created_at,
         e.updated_at,
-        c.first_name as customer_first_name,
-        c.last_name as customer_last_name,
-        c.email as customer_email,
-        c.phone as customer_phone,
-        c.cin as customer_cin,
-        c.date_of_birth as customer_date_of_birth,
-        c.address as customer_address,
-        c.city as customer_city
+        c.id as customer_id_check,
+        c.cin,
+        c.first_name,
+        c.last_name,
+        c.email,
+        c.phone,
+        c.date_of_birth,
+        c.address,
+        c.city,
+        c.data as customer_data
       FROM enrollments e
       LEFT JOIN customers c ON e.customer_id = c.id
       WHERE e.id = $1 AND e.deleted_at IS NULL
@@ -62,7 +65,7 @@ class EnrollmentServiceV2 {
 
     const row = result.rows[0];
 
-    // Build response with customer object
+    // Build response with flattened customer object
     return {
       id: row.id,
       agent_id: row.agent_id,
@@ -70,16 +73,18 @@ class EnrollmentServiceV2 {
       data: row.data,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      customer: row.customer_first_name ? {
-        first_name: row.customer_first_name,
-        last_name: row.customer_last_name,
-        email: row.customer_email,
-        phone: row.customer_phone,
-        cin: row.customer_cin,
-        date_of_birth: row.customer_date_of_birth,
-        address: row.customer_address,
-        city: row.customer_city
-      } : null
+      customer: row.customer_id_check ? customerJsonbService.flattenCustomerRow({
+        id: row.customer_id_check,
+        cin: row.cin,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        date_of_birth: row.date_of_birth,
+        address: row.address,
+        city: row.city,
+        data: row.customer_data
+      }) : null
     };
   }
 
@@ -128,6 +133,77 @@ class EnrollmentServiceV2 {
   }
 
   /**
+   * Helper function to upsert customer (create or update)
+   * @private
+   * @param {Object} coreFields - Core customer fields
+   * @param {Object} jsonbData - JSONB data object
+   * @param {Object} client - Database client (for transaction)
+   * @returns {string} Customer ID
+   */
+  async _upsertCustomer(coreFields, jsonbData, client) {
+    // Try to find existing by CIN
+    const existingQuery = 'SELECT id FROM customers WHERE cin = $1';
+    const existingResult = await client.query(existingQuery, [coreFields.cin]);
+
+    if (existingResult.rows.length > 0) {
+      // Update existing customer - DUAL WRITE
+      const updateQuery = `
+        UPDATE customers
+        SET
+          first_name = $1,
+          last_name = $2,
+          email = $3,
+          phone = $4,
+          date_of_birth = $5,
+          address = $6,
+          city = $7,
+          data = $8,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE cin = $9
+        RETURNING id
+      `;
+
+      const result = await client.query(updateQuery, [
+        coreFields.first_name,
+        coreFields.last_name,
+        coreFields.email,
+        coreFields.phone,
+        jsonbData.dateOfBirth || null,
+        JSON.stringify(jsonbData.address || {}),
+        jsonbData.address?.city || null,
+        JSON.stringify(jsonbData),
+        coreFields.cin
+      ]);
+
+      return result.rows[0].id;
+    } else {
+      // Create new customer - DUAL WRITE
+      const insertQuery = `
+        INSERT INTO customers (
+          cin, first_name, last_name, email, phone,
+          date_of_birth, address, city, data
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id
+      `;
+
+      const result = await client.query(insertQuery, [
+        coreFields.cin,
+        coreFields.first_name,
+        coreFields.last_name,
+        coreFields.email,
+        coreFields.phone,
+        jsonbData.dateOfBirth || null,
+        JSON.stringify(jsonbData.address || {}),
+        jsonbData.address?.city || null,
+        JSON.stringify(jsonbData)
+      ]);
+
+      return result.rows[0].id;
+    }
+  }
+
+  /**
    * Update enrollment data (always allowed, no status check)
    * @param {string} enrollmentId - UUID of the enrollment
    * @param {Object} enrollmentData - New data to merge into enrollment.data
@@ -156,61 +232,14 @@ class EnrollmentServiceV2 {
         ...enrollmentData
       };
 
-      // If personalInfo.subscriber exists, create or update customer record
+      // Handle subscriber customer record
       let customerId = currentCustomerId;
 
       if (enrollmentData.personalInfo?.subscriber) {
-        const subscriber = enrollmentData.personalInfo.subscriber;
-
-        if (customerId) {
-          // Update existing customer
-          const updateCustomerQuery = `
-            UPDATE customers
-            SET
-              first_name = $1,
-              last_name = $2,
-              date_of_birth = $3,
-              cin = $4,
-              email = $5,
-              phone = $6,
-              address = $7,
-              city = $8,
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = $9
-          `;
-
-          await client.query(updateCustomerQuery, [
-            subscriber.firstName || '',
-            subscriber.lastName || '',
-            subscriber.dateOfBirth || null,
-            subscriber.cin || null,
-            subscriber.email || null,
-            subscriber.phone || null,
-            subscriber.address || null,
-            subscriber.city || null,
-            customerId
-          ]);
-        } else {
-          // Create new customer
-          const createCustomerQuery = `
-            INSERT INTO customers (first_name, last_name, date_of_birth, cin, email, phone, address, city)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id
-          `;
-
-          const customerResult = await client.query(createCustomerQuery, [
-            subscriber.firstName || '',
-            subscriber.lastName || '',
-            subscriber.dateOfBirth || null,
-            subscriber.cin || null,
-            subscriber.email || null,
-            subscriber.phone || null,
-            subscriber.address || null,
-            subscriber.city || null
-          ]);
-
-          customerId = customerResult.rows[0].id;
-        }
+        const { coreFields, jsonbData } = customerJsonbService.mapPersonToDb(
+          enrollmentData.personalInfo.subscriber
+        );
+        customerId = await this._upsertCustomer(coreFields, jsonbData, client);
       }
 
       // Update enrollment

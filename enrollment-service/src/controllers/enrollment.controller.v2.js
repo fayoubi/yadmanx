@@ -48,6 +48,63 @@ class EnrollmentControllerV2 {
   }
 
   /**
+   * Get enrollment step data (compatibility route for step-based frontend)
+   * GET /api/v1/enrollments/:id/steps/:stepName
+   *
+   * Maps V2 JSONB data structure to V1 step-based format for frontend compatibility
+   */
+  async getEnrollmentStep(req, res, next) {
+    try {
+      const { id, stepName } = req.params;
+
+      const enrollment = await enrollmentService.getById(id);
+
+      if (!enrollment) {
+        throw new ApiError(404, 'Enrollment not found');
+      }
+
+      // Map JSONB data to step-based format based on step name
+      let stepData = null;
+
+      switch (stepName) {
+        case 'customer_info':
+        case 'personal_info':
+          stepData = {
+            subscriber: enrollment.data?.personalInfo?.subscriber || {},
+            insured: enrollment.data?.personalInfo?.insured || {},
+            insuredSameAsSubscriber: enrollment.data?.personalInfo?.insuredSameAsSubscriber ?? true
+          };
+          break;
+
+        case 'contribution':
+          stepData = enrollment.data?.contribution || {};
+          break;
+
+        case 'beneficiaries':
+          stepData = {
+            beneficiaries: enrollment.data?.beneficiaries || []
+          };
+          break;
+
+        default:
+          // Return all data for unknown step names
+          stepData = enrollment.data;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          enrollment_id: enrollment.id,
+          step_name: stepName,
+          step_data: stepData
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * List enrollments for the authenticated agent
    * GET /api/v1/enrollments
    */

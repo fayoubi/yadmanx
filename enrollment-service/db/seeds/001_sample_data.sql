@@ -4,24 +4,24 @@ VALUES
   ('11111111-1111-1111-1111-111111111111', 'John', 'Agent', 'john.agent@yadmanx.com', '555-0100', 'LIC-12345', 'active')
 ON CONFLICT (id) DO NOTHING;
 
--- Insert customers
-INSERT INTO customers (id, cin, first_name, last_name, middle_name, date_of_birth, email, phone, address)
+-- Insert customers (middle_name removed as per migration 004)
+INSERT INTO customers (id, cin, first_name, last_name, date_of_birth, email, phone, address)
 VALUES
-  ('22222222-2222-2222-2222-222222222222', 'CIN123456', 'Alice', 'Johnson', 'Marie', '1985-03-15', 'alice.johnson@email.com', '555-0101',
+  ('22222222-2222-2222-2222-222222222222', 'CIN123456', 'Alice', 'Johnson', '1985-03-15', 'alice.johnson@email.com', '555-0101',
    '{"street": "123 Main St", "city": "New York", "state": "NY", "zip": "10001"}'),
-  ('33333333-3333-3333-3333-333333333333', 'CIN234567', 'Bob', 'Smith', 'Lee', '1978-07-22', 'bob.smith@email.com', '555-0102',
+  ('33333333-3333-3333-3333-333333333333', 'CIN234567', 'Bob', 'Smith', '1978-07-22', 'bob.smith@email.com', '555-0102',
    '{"street": "456 Oak Ave", "city": "Los Angeles", "state": "CA", "zip": "90001"}'),
-  ('44444444-4444-4444-4444-444444444444', 'CIN345678', 'Carol', 'Williams', NULL, '1990-11-08', 'carol.williams@email.com', '555-0103',
+  ('44444444-4444-4444-4444-444444444444', 'CIN345678', 'Carol', 'Williams', '1990-11-08', 'carol.williams@email.com', '555-0103',
    '{"street": "789 Pine Rd", "city": "Chicago", "state": "IL", "zip": "60601"}'),
-  ('55555555-5555-5555-5555-555555555555', 'CIN456789', 'David', 'Brown', 'James', '1982-01-30', 'david.brown@email.com', '555-0104',
+  ('55555555-5555-5555-5555-555555555555', 'CIN456789', 'David', 'Brown', '1982-01-30', 'david.brown@email.com', '555-0104',
    '{"street": "321 Elm St", "city": "Houston", "state": "TX", "zip": "77001"}'),
-  ('66666666-6666-6666-6666-666666666666', 'CIN567890', 'Emma', 'Davis', 'Rose', '1995-05-17', 'emma.davis@email.com', '555-0105',
+  ('66666666-6666-6666-6666-666666666666', 'CIN567890', 'Emma', 'Davis', '1995-05-17', 'emma.davis@email.com', '555-0105',
    '{"street": "654 Maple Dr", "city": "Phoenix", "state": "AZ", "zip": "85001"}'),
-  ('77777777-7777-7777-7777-777777777777', 'CIN678901', 'Frank', 'Miller', NULL, '1988-09-25', 'frank.miller@email.com', '555-0106',
+  ('77777777-7777-7777-7777-777777777777', 'CIN678901', 'Frank', 'Miller', '1988-09-25', 'frank.miller@email.com', '555-0106',
    '{"street": "987 Cedar Ln", "city": "Philadelphia", "state": "PA", "zip": "19019"}'),
-  ('88888888-8888-8888-8888-888888888888', 'CIN789012', 'Grace', 'Wilson', 'Ann', '1975-12-03', 'grace.wilson@email.com', '555-0107',
+  ('88888888-8888-8888-8888-888888888888', 'CIN789012', 'Grace', 'Wilson', '1975-12-03', 'grace.wilson@email.com', '555-0107',
    '{"street": "147 Birch Ct", "city": "San Antonio", "state": "TX", "zip": "78201"}'),
-  ('99999999-9999-9999-9999-999999999999', 'CIN890123', 'Henry', 'Moore', 'Thomas', '1992-06-14', 'henry.moore@email.com', '555-0108',
+  ('99999999-9999-9999-9999-999999999999', 'CIN890123', 'Henry', 'Moore', '1992-06-14', 'henry.moore@email.com', '555-0108',
    '{"street": "258 Spruce Way", "city": "San Diego", "state": "CA", "zip": "92101"}')
 ON CONFLICT (id) DO NOTHING;
 
