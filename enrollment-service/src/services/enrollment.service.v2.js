@@ -21,7 +21,7 @@ class EnrollmentServiceV2 {
     const query = `
       INSERT INTO enrollments (agent_id, data)
       VALUES ($1, '{}'::jsonb)
-      RETURNING id, agent_id, customer_id, data, created_at, updated_at
+      RETURNING id, agent_id, subscriber_id, insured_id, data, created_at, updated_at
     `;
 
     const result = await pool.query(query, [agentId]);
@@ -29,31 +29,44 @@ class EnrollmentServiceV2 {
   }
 
   /**
-   * Get enrollment by ID with customer info
+   * Get enrollment by ID with subscriber and insured customer info
    * @param {string} enrollmentId - UUID of the enrollment
-   * @returns {Object|null} The enrollment with customer data
+   * @returns {Object|null} The enrollment with subscriber and insured data
    */
   async getById(enrollmentId) {
     const query = `
       SELECT
         e.id,
         e.agent_id,
-        e.customer_id,
+        e.subscriber_id,
+        e.insured_id,
         e.data,
         e.created_at,
         e.updated_at,
-        c.id as customer_id_check,
-        c.cin,
-        c.first_name,
-        c.last_name,
-        c.email,
-        c.phone,
-        c.date_of_birth,
-        c.address,
-        c.city,
-        c.data as customer_data
+
+        -- Subscriber customer data
+        cs.id as subscriber_customer_id,
+        cs.cin as subscriber_cin,
+        cs.first_name as subscriber_first_name,
+        cs.last_name as subscriber_last_name,
+        cs.email as subscriber_email,
+        cs.phone as subscriber_phone,
+        cs.address as subscriber_address,
+        cs.data as subscriber_data,
+
+        -- Insured customer data
+        ci.id as insured_customer_id,
+        ci.cin as insured_cin,
+        ci.first_name as insured_first_name,
+        ci.last_name as insured_last_name,
+        ci.email as insured_email,
+        ci.phone as insured_phone,
+        ci.address as insured_address,
+        ci.data as insured_data
+
       FROM enrollments e
-      LEFT JOIN customers c ON e.customer_id = c.id
+      LEFT JOIN customers cs ON e.subscriber_id = cs.id
+      LEFT JOIN customers ci ON e.insured_id = ci.id
       WHERE e.id = $1 AND e.deleted_at IS NULL
     `;
 
@@ -65,57 +78,83 @@ class EnrollmentServiceV2 {
 
     const row = result.rows[0];
 
-    // Build response with flattened customer object
     return {
       id: row.id,
       agent_id: row.agent_id,
-      customer_id: row.customer_id,
+      subscriber_id: row.subscriber_id,
+      insured_id: row.insured_id,
       data: row.data,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      customer: row.customer_id_check ? customerJsonbService.flattenCustomerRow({
-        id: row.customer_id_check,
-        cin: row.cin,
-        first_name: row.first_name,
-        last_name: row.last_name,
-        email: row.email,
-        phone: row.phone,
-        date_of_birth: row.date_of_birth,
-        address: row.address,
-        city: row.city,
-        data: row.customer_data
+
+      subscriber: row.subscriber_customer_id ? customerJsonbService.flattenCustomerRow({
+        id: row.subscriber_customer_id,
+        cin: row.subscriber_cin,
+        first_name: row.subscriber_first_name,
+        last_name: row.subscriber_last_name,
+        email: row.subscriber_email,
+        phone: row.subscriber_phone,
+        address: row.subscriber_address,
+        data: row.subscriber_data
+      }) : null,
+
+      insured: row.insured_customer_id ? customerJsonbService.flattenCustomerRow({
+        id: row.insured_customer_id,
+        cin: row.insured_cin,
+        first_name: row.insured_first_name,
+        last_name: row.insured_last_name,
+        email: row.insured_email,
+        phone: row.insured_phone,
+        address: row.insured_address,
+        data: row.insured_data
+      }) : null,
+
+      // Backward compatibility: return subscriber as "customer"
+      customer: row.subscriber_customer_id ? customerJsonbService.flattenCustomerRow({
+        id: row.subscriber_customer_id,
+        cin: row.subscriber_cin,
+        first_name: row.subscriber_first_name,
+        last_name: row.subscriber_last_name,
+        email: row.subscriber_email,
+        phone: row.subscriber_phone,
+        address: row.subscriber_address,
+        data: row.subscriber_data
       }) : null
     };
   }
 
   /**
    * List enrollments for an agent
+   * Shows subscriber info for display (subscriber is the primary contact)
    * @param {string} agentId - UUID of the agent
    * @param {number} limit - Max number of results
    * @param {number} offset - Offset for pagination
-   * @returns {Array} Array of enrollments
+   * @returns {Array} Array of enrollments with subscriber details
    */
   async list(agentId, limit = 50, offset = 0) {
     const query = `
       SELECT
         e.id,
         e.agent_id,
-        e.customer_id,
+        e.subscriber_id,
+        e.insured_id,
         e.data,
         e.created_at,
         e.updated_at,
-        c.first_name || ' ' || c.last_name as customer_name,
-        COALESCE(
-          c.first_name,
-          e.data->'personalInfo'->'subscriber'->>'firstName'
-        ) || ' ' || COALESCE(
-          c.last_name,
-          e.data->'personalInfo'->'subscriber'->>'lastName'
-        ) as full_customer_name
+        c.first_name,
+        c.last_name,
+        c.email,
+        c.phone,
+        c.cin,
+        CASE 
+          WHEN c.data IS NOT NULL AND c.data != '{}'::jsonb 
+          THEN (c.data::jsonb)->'address'->>'city'
+          ELSE NULL
+        END as city
       FROM enrollments e
-      LEFT JOIN customers c ON e.customer_id = c.id
+      LEFT JOIN customers c ON e.subscriber_id = c.id AND c.deleted_at IS NULL
       WHERE e.agent_id = $1 AND e.deleted_at IS NULL
-      ORDER BY e.created_at DESC
+      ORDER BY e.updated_at DESC
       LIMIT $2 OFFSET $3
     `;
 
@@ -124,11 +163,17 @@ class EnrollmentServiceV2 {
     return result.rows.map(row => ({
       id: row.id,
       agent_id: row.agent_id,
-      customer_id: row.customer_id,
-      customer_name: row.full_customer_name || 'Unnamed Customer',
-      data: row.data,
+      subscriber_id: row.subscriber_id,
+      insured_id: row.insured_id,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      email: row.email,
+      phone: row.phone,
+      cin: row.cin,
+      city: row.city,
       created_at: row.created_at,
-      updated_at: row.updated_at
+      updated_at: row.updated_at,
+      data: row.data
     }));
   }
 
@@ -146,7 +191,7 @@ class EnrollmentServiceV2 {
     const existingResult = await client.query(existingQuery, [coreFields.cin]);
 
     if (existingResult.rows.length > 0) {
-      // Update existing customer - DUAL WRITE
+      // Update existing customer - store all data in JSONB
       const updateQuery = `
         UPDATE customers
         SET
@@ -154,12 +199,10 @@ class EnrollmentServiceV2 {
           last_name = $2,
           email = $3,
           phone = $4,
-          date_of_birth = $5,
-          address = $6,
-          city = $7,
-          data = $8,
+          address = $5,
+          data = $6,
           updated_at = CURRENT_TIMESTAMP
-        WHERE cin = $9
+        WHERE cin = $7
         RETURNING id
       `;
 
@@ -168,22 +211,20 @@ class EnrollmentServiceV2 {
         coreFields.last_name,
         coreFields.email,
         coreFields.phone,
-        jsonbData.dateOfBirth || null,
         JSON.stringify(jsonbData.address || {}),
-        jsonbData.address?.city || null,
         JSON.stringify(jsonbData),
         coreFields.cin
       ]);
 
       return result.rows[0].id;
     } else {
-      // Create new customer - DUAL WRITE
+      // Create new customer - store all data in JSONB
       const insertQuery = `
         INSERT INTO customers (
           cin, first_name, last_name, email, phone,
-          date_of_birth, address, city, data
+          address, data
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
       `;
 
@@ -193,9 +234,7 @@ class EnrollmentServiceV2 {
         coreFields.last_name,
         coreFields.email,
         coreFields.phone,
-        jsonbData.dateOfBirth || null,
         JSON.stringify(jsonbData.address || {}),
-        jsonbData.address?.city || null,
         JSON.stringify(jsonbData)
       ]);
 
@@ -205,6 +244,7 @@ class EnrollmentServiceV2 {
 
   /**
    * Update enrollment data (always allowed, no status check)
+   * Handles separate subscriber and insured customers
    * @param {string} enrollmentId - UUID of the enrollment
    * @param {Object} enrollmentData - New data to merge into enrollment.data
    * @returns {Object} The updated enrollment
@@ -216,7 +256,7 @@ class EnrollmentServiceV2 {
       await client.query('BEGIN');
 
       // Get current enrollment
-      const getCurrentQuery = 'SELECT data, customer_id FROM enrollments WHERE id = $1 AND deleted_at IS NULL';
+      const getCurrentQuery = 'SELECT data, subscriber_id, insured_id FROM enrollments WHERE id = $1 AND deleted_at IS NULL';
       const currentResult = await client.query(getCurrentQuery, [enrollmentId]);
 
       if (currentResult.rows.length === 0) {
@@ -224,7 +264,8 @@ class EnrollmentServiceV2 {
       }
 
       const currentData = currentResult.rows[0].data || {};
-      const currentCustomerId = currentResult.rows[0].customer_id;
+      let subscriberId = currentResult.rows[0].subscriber_id;
+      let insuredId = currentResult.rows[0].insured_id;
 
       // Merge new data with existing data
       const mergedData = {
@@ -232,14 +273,32 @@ class EnrollmentServiceV2 {
         ...enrollmentData
       };
 
-      // Handle subscriber customer record
-      let customerId = currentCustomerId;
-
+      // Process subscriber
       if (enrollmentData.personalInfo?.subscriber) {
         const { coreFields, jsonbData } = customerJsonbService.mapPersonToDb(
           enrollmentData.personalInfo.subscriber
         );
-        customerId = await this._upsertCustomer(coreFields, jsonbData, client);
+        subscriberId = await this._upsertCustomer(coreFields, jsonbData, client);
+      }
+
+      // Process insured
+      const insuredSameAsSubscriber = mergedData.personalInfo?.insuredSameAsSubscriber ?? true;
+
+      if (insuredSameAsSubscriber) {
+        // Self-insured: insured_id should be NULL
+        insuredId = null;
+      } else if (enrollmentData.personalInfo?.insured) {
+        // Different insured: create/update separate customer
+        const { coreFields, jsonbData } = customerJsonbService.mapPersonToDb(
+          enrollmentData.personalInfo.insured
+        );
+        insuredId = await this._upsertCustomer(coreFields, jsonbData, client);
+      }
+
+      // Clean JSONB: Remove subscriber and insured objects
+      if (mergedData.personalInfo) {
+        const { subscriber, insured, ...restPersonalInfo } = mergedData.personalInfo;
+        mergedData.personalInfo = restPersonalInfo;
       }
 
       // Update enrollment
@@ -247,15 +306,17 @@ class EnrollmentServiceV2 {
         UPDATE enrollments
         SET
           data = $1,
-          customer_id = $2,
+          subscriber_id = $2,
+          insured_id = $3,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3
-        RETURNING id, agent_id, customer_id, data, created_at, updated_at
+        WHERE id = $4
+        RETURNING id, agent_id, subscriber_id, insured_id, data, created_at, updated_at
       `;
 
       const result = await client.query(updateEnrollmentQuery, [
         JSON.stringify(mergedData),
-        customerId,
+        subscriberId,
+        insuredId,
         enrollmentId
       ]);
 

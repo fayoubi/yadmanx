@@ -17,20 +17,16 @@ ALTER TABLE enrollments
   ADD COLUMN IF NOT EXISTS subscriber_id UUID REFERENCES customers(id),
   ADD COLUMN IF NOT EXISTS insured_id UUID REFERENCES customers(id);
 
-RAISE NOTICE 'Added subscriber_id and insured_id columns to enrollments';
-
 -- Step 2: Migrate existing data (customer_id becomes subscriber_id)
 UPDATE enrollments
 SET subscriber_id = customer_id
 WHERE subscriber_id IS NULL AND customer_id IS NOT NULL;
 
-RAISE NOTICE 'Migrated existing customer_id values to subscriber_id';
-
--- Step 3: Make subscriber_id NOT NULL (always required - every enrollment has a subscriber)
-ALTER TABLE enrollments
-  ALTER COLUMN subscriber_id SET NOT NULL;
-
-RAISE NOTICE 'Set subscriber_id as NOT NULL';
+-- Step 3: Note about subscriber_id constraint
+-- We do NOT make subscriber_id NOT NULL at the database level because:
+-- - New enrollments start empty (no customer data yet)
+-- - subscriber_id gets populated when personal info is saved
+-- - Application-level validation ensures subscriber_id is set before enrollment is completed
 
 -- Step 4: Drop old customer_id column
 DO $$
@@ -51,8 +47,6 @@ END $$;
 -- Step 5: Add indexes for performance
 CREATE INDEX IF NOT EXISTS idx_enrollments_subscriber_id ON enrollments(subscriber_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_insured_id ON enrollments(insured_id);
-
-RAISE NOTICE 'Created indexes on subscriber_id and insured_id';
 
 -- Step 6: Add comments
 COMMENT ON COLUMN enrollments.subscriber_id IS 'Customer who owns the policy (payer) - always required';

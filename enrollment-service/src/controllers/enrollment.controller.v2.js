@@ -1,5 +1,6 @@
 import enrollmentService from '../services/enrollment.service.v2.js';
 import { ApiError } from '../middleware/errorHandler.js';
+import { maskCIN, formatFullName } from '../utils/formatters.js';
 
 /**
  * Enrollment Controller V2 - JSONB-based, No Status, Always Editable
@@ -63,15 +64,35 @@ class EnrollmentControllerV2 {
         throw new ApiError(404, 'Enrollment not found');
       }
 
-      // Map JSONB data to step-based format based on step name
+      // Map data to step-based format based on step name
       let stepData = null;
 
       switch (stepName) {
         case 'customer_info':
         case 'personal_info':
+          // Populate from customer records, NOT JSONB
+          const subscriberData = enrollment.subscriber ? {
+            firstName: enrollment.subscriber.first_name,
+            lastName: enrollment.subscriber.last_name,
+            cin: enrollment.subscriber.cin,
+            email: enrollment.subscriber.email,
+            phone: enrollment.subscriber.phone,
+            dateOfBirth: enrollment.subscriber.date_of_birth,
+            placeOfBirth: enrollment.subscriber.birth_place,
+            nationality: enrollment.subscriber.nationality,
+            address: enrollment.subscriber.address
+          } : {};
+
+          const insuredData = enrollment.insured ? {
+            firstName: enrollment.insured.first_name,
+            lastName: enrollment.insured.last_name,
+            cin: enrollment.insured.cin,
+            dateOfBirth: enrollment.insured.date_of_birth
+          } : {};
+
           stepData = {
-            subscriber: enrollment.data?.personalInfo?.subscriber || {},
-            insured: enrollment.data?.personalInfo?.insured || {},
+            subscriber: subscriberData,
+            insured: insuredData,
             insuredSameAsSubscriber: enrollment.data?.personalInfo?.insuredSameAsSubscriber ?? true
           };
           break;
@@ -116,9 +137,27 @@ class EnrollmentControllerV2 {
 
       const enrollments = await enrollmentService.list(agentId, limit, offset);
 
+      // Format enrollments for frontend display
+      const formattedEnrollments = enrollments.map(enrollment => ({
+        id: enrollment.id,
+        customer: {
+          firstName: enrollment.first_name,
+          lastName: enrollment.last_name,
+          fullName: formatFullName(enrollment.first_name, enrollment.last_name),
+          email: enrollment.email,
+          phone: enrollment.phone,
+          cin: enrollment.cin, // Original CIN (for hyperlink)
+          cinMasked: maskCIN(enrollment.cin), // Masked CIN for display
+          city: enrollment.city
+        },
+        status: null, // Placeholder for future status field
+        createdAt: enrollment.created_at,
+        updatedAt: enrollment.updated_at
+      }));
+
       res.json({
         success: true,
-        enrollments,
+        enrollments: formattedEnrollments,
         pagination: {
           limit,
           offset,

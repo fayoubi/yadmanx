@@ -11,23 +11,30 @@
     "test:watch": "NODE_ENV=test jest --watch",
     "test:coverage": "NODE_ENV=test jest --coverage",
     "db:migrate": "node db/migrations/run.js",
-    "db:seed": "node db/seeds/run.js"
+    "db:seed": "node db/seeds/run.js",
+    "verify:subscriber-insured": "node scripts/verify_subscriber_insured.js",
+    "test:subscriber-insured-api": "node scripts/test_subscriber_insured_api.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "helmet": "^7.0.0",
     "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
     "pg": "^8.11.0",
-    "uuid": "^9.0.0",
-    "dotenv": "^16.3.1"
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "jest": "^29.6.1",
     "supertest": "^6.3.3"
   },
-  "keywords": ["insurance", "enrollment", "microservice"],
+  "keywords": [
+    "insurance",
+    "enrollment",
+    "microservice"
+  ],
   "author": "",
   "license": "ISC"
 }

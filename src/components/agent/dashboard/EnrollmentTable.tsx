@@ -6,10 +6,19 @@ import EmptyState from './EmptyState';
 
 interface Enrollment {
   id: string;
-  applicantName: string;
-  status: string;
-  startDate: string;
-  lastUpdated: string;
+  customer: {
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    cin: string;
+    cinMasked: string;
+    city: string;
+  };
+  status: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const EnrollmentTable: React.FC = () => {
@@ -19,7 +28,7 @@ const EnrollmentTable: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const AGENT_SERVICE_URL = 'http://localhost:3003/api/v1';
+  const ENROLLMENT_SERVICE_URL = 'http://localhost:3002/api/v1';
 
   useEffect(() => {
     fetchEnrollments();
@@ -33,30 +42,30 @@ const EnrollmentTable: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${AGENT_SERVICE_URL}/agents/enrollments`, {
+      const response = await fetch(`${ENROLLMENT_SERVICE_URL}/enrollments`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
-        // If 404 or 500 with "no enrollments" message, treat as empty list
-        if (response.status === 404 || response.status === 500) {
-          const errorData = await response.json().catch(() => ({}));
-          // Check if it's genuinely an empty list vs a real error
-          if (errorData.message?.toLowerCase().includes('no enrollments') ||
-              errorData.error?.toLowerCase().includes('no enrollments') ||
-              errorData.message?.toLowerCase().includes('not found')) {
-            setEnrollments([]);
-            setError(null);
-            return;
-          }
+        // Handle authentication errors
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please log in again.');
         }
+
+        // If 404 or other errors, treat as empty list
+        if (response.status === 404) {
+          setEnrollments([]);
+          setError(null);
+          return;
+        }
+
         throw new Error('Unable to connect to enrollment service');
       }
 
       const data = await response.json();
-      setEnrollments(data.data || data.enrollments || []);
+      setEnrollments(data.enrollments || []);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching enrollments:', err);
@@ -76,8 +85,8 @@ const EnrollmentTable: React.FC = () => {
     if (!token) return;
 
     try {
-      // Create new enrollment via agent-service (same as Dashboard button)
-      const response = await fetch('http://localhost:3003/api/v1/agents/enrollments', {
+      // Create new enrollment via enrollment-service
+      const response = await fetch(`${ENROLLMENT_SERVICE_URL}/enrollments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,19 +124,6 @@ const EnrollmentTable: React.FC = () => {
     navigate('/enroll/start');
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -150,20 +146,44 @@ const EnrollmentTable: React.FC = () => {
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
+      <table className="min-w-full">
         <thead className="bg-gray-50">
           <tr>
             <th
               scope="col"
               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
-              Application ID
+              First Name
             </th>
             <th
               scope="col"
               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
-              Applicant Name
+              Last Name
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Email
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Phone
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              CIN
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              City
             </th>
             <th
               scope="col"
@@ -175,39 +195,35 @@ const EnrollmentTable: React.FC = () => {
               scope="col"
               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
-              Start Date
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Last Updated
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
               Actions
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white divide-y divide-gray-100">
           {enrollments.map((enrollment) => (
             <tr key={enrollment.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {enrollment.id.substring(0, 8)}...
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {enrollment.customer.firstName || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {enrollment.applicantName || 'N/A'}
+                {enrollment.customer.lastName || 'N/A'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                {enrollment.customer.email || 'N/A'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                {enrollment.customer.phone || 'N/A'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <span className="text-gray-400 cursor-default">
+                  {enrollment.customer.cinMasked || '****'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                {enrollment.customer.city || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <StatusBadge status={enrollment.status} />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatDate(enrollment.startDate)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatDate(enrollment.lastUpdated)}
+                <StatusBadge status={enrollment.status || ''} />
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                 <button
@@ -216,7 +232,7 @@ const EnrollmentTable: React.FC = () => {
                 >
                   View
                 </button>
-                {enrollment.status.toLowerCase() === 'draft' && (
+                {enrollment.status?.toLowerCase() === 'draft' && (
                   <button
                     onClick={() => handleContinueEnrollment(enrollment.id)}
                     className="text-green-600 hover:text-green-900"
