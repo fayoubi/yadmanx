@@ -25,7 +25,17 @@ const PORT = process.env.PORT || 3002;
 app.set('trust proxy', 1);
 
 // Security middleware
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "script-src": ["'self'", "https://cdn.jsdelivr.net"],
+        "script-src-elem": ["'self'", "https://cdn.jsdelivr.net"]
+      }
+    }
+  })
+);
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || '*',
@@ -94,6 +104,26 @@ app.get('/api/docs/', (req, res) => {
   } catch (error) {
     console.error('Error serving documentation:', error);
     res.status(500).json({ error: 'Error loading documentation' });
+  }
+});
+
+// Sequence Diagrams Page
+app.get('/api/docs/sequence-diagrams.html', (req, res) => {
+  try {
+    const diagramsPath = path.join(__dirname, 'docs', 'sequence-diagrams.html');
+    if (fs.existsSync(diagramsPath)) {
+      const diagramsContent = fs.readFileSync(diagramsPath, 'utf8');
+      res.set('Content-Type', 'text/html');
+      res.send(diagramsContent);
+    } else {
+      res.status(404).json({
+        error: 'Sequence diagrams not found',
+        message: 'Sequence diagrams page is not available',
+      });
+    }
+  } catch (error) {
+    console.error('Error serving sequence diagrams:', error);
+    res.status(500).json({ error: 'Error loading sequence diagrams' });
   }
 });
 

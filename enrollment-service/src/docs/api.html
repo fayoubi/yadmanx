@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>yadmanx Enrollment Service API Documentation</title>
+    <title>Yadmanx Enrollment Service API Documentation</title>
     <style>
         * {
             margin: 0;
@@ -49,6 +49,11 @@
             margin-top: 1.5rem;
             margin-bottom: 0.5rem;
         }
+        h4 {
+            color: #4a5568;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
         .endpoint {
             margin: 1.5rem 0;
             padding: 1rem;
@@ -88,228 +93,1066 @@
             padding: 1rem;
             margin: 1rem 0;
         }
+        .business-rule {
+            background: #e6f7ff;
+            border-left: 4px solid #1890ff;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .success {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .badge-new {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .badge-updated {
+            background: #dbeafe;
+            color: #1e40af;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>yadmanx Enrollment Service</h1>
-        <p>API Documentation v1.0.0</p>
+        <h1>Yadmanx Enrollment Service</h1>
+        <p>API Documentation v2.0.0 - Subscriber/Insured Separation</p>
     </div>
 
     <div class="container">
         <div class="section">
-            <h2>Overview</h2>
-            <p>The Enrollment Service handles the complete enrollment workflow for yadmanx, including customer management, enrollment tracking, billing data (encrypted), beneficiaries, and dynamic step data.</p>
+            <h2>📋 Overview</h2>
+            <p><strong>Business Purpose:</strong> The Enrollment Service manages the complete insurance policy enrollment lifecycle for Yadmanx agents and their clients. It handles the creation of policy applications, tracking of customer information, management of subscriber and insured parties, contribution details, and beneficiary designations.</p>
+
             <p><strong>Base URL:</strong> <code>http://localhost:3002/api/v1</code></p>
-        </div>
 
-        <div class="section">
-            <h2>Authentication</h2>
-            <p>Currently using stubbed authentication. Include agent ID in header:</p>
-            <pre>x-agent-id: 11111111-1111-1111-1111-111111111111</pre>
-            <div class="note">
-                <strong>Note:</strong> JWT authentication will be implemented in a future release.
+            <div class="success">
+                <strong>✨ V2 Architecture:</strong> This service uses a flexible JSONB-based data model with no status tracking. Enrollments are always editable and data is automatically saved as it's entered.
             </div>
+
+            <h3>Key Business Concepts</h3>
+            <table>
+                <tr>
+                    <th>Concept</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><strong>Enrollment</strong></td>
+                    <td>A policy application created by an agent for a customer. Contains all information needed to issue an insurance policy.</td>
+                </tr>
+                <tr>
+                    <td><strong>Subscriber</strong></td>
+                    <td>The policy owner who pays the premiums. This is always a required party in every enrollment.</td>
+                </tr>
+                <tr>
+                    <td><strong>Insured</strong></td>
+                    <td>The person covered by the insurance policy. Can be the same as the subscriber (self-insured) or a different person (e.g., parent insuring child).</td>
+                </tr>
+                <tr>
+                    <td><strong>Beneficiary</strong></td>
+                    <td>Person(s) designated to receive benefits upon the insured's death. Multiple beneficiaries can be designated with percentage allocations.</td>
+                </tr>
+                <tr>
+                    <td><strong>Contribution</strong></td>
+                    <td>Premium payment information including amount, frequency, payment method, and origin of funds.</td>
+                </tr>
+            </table>
         </div>
 
         <div class="section">
-            <h2>Enrollment Management</h2>
+            <h2>🔐 Authentication</h2>
+            <p><strong>Method:</strong> JWT Bearer Token Authentication</p>
 
-            <div class="endpoint">
-                <h3><span class="method post">POST</span> /enrollments</h3>
-                <p>Create new enrollment</p>
-                <pre>{
-  "customer": {
-    "cin": "CIN123456",
-    "first_name": "John",
-    "last_name": "Doe",
-    "date_of_birth": "1985-01-15",
-    "email": "john@example.com",
-    "phone": "555-0100",
-    "address": {
-      "street": "123 Main St",
-      "city": "New York",
-      "state": "NY",
-      "zip": "10001"
-    }
-  },
-  "plan_id": "plan-001",
-  "effective_date": "2025-11-01"
+            <h4>Header Format:</h4>
+            <pre>Authorization: Bearer &lt;jwt_token&gt;</pre>
+
+            <h4>Development/Testing Alternative:</h4>
+            <pre>x-agent-id: 8ab743b2-e9df-4035-8f29-968be5928100</pre>
+
+            <div class="business-rule">
+                <strong>🔒 Business Rule:</strong> All API requests must include valid authentication. Agents can only access and modify enrollments they created (filtered by <code>agent_id</code> from JWT token).
+            </div>
+
+            <h4>Token Payload:</h4>
+            <pre>{
+  "agentId": "uuid",
+  "email": "agent@yadmanx.ma",
+  "firstName": "Mohammed",
+  "lastName": "Alami",
+  "licenseNumber": "AG-2024-001",
+  "agencyName": "Yadmanx Agency Casablanca",
+  "iat": 1234567890,
+  "exp": 1234654290,
+  "iss": "yadmanx-agent-service"
 }</pre>
-            </div>
+        </div>
+
+        <div class="section">
+            <h2>📝 Enrollment Management</h2>
 
             <div class="endpoint">
-                <h3><span class="method get">GET</span> /enrollments/:id</h3>
-                <p>Get enrollment details by ID</p>
-            </div>
+                <h3><span class="method post">POST</span> /enrollments <span class="badge badge-new">V2</span></h3>
+                <p><strong>Business Purpose:</strong> Initiate a new insurance policy enrollment application. This creates an empty enrollment record that the agent will populate with customer information through subsequent API calls.</p>
 
-            <div class="endpoint">
-                <h3><span class="method get">GET</span> /enrollments</h3>
-                <p>List enrollments with filters</p>
-                <p><strong>Query Parameters:</strong> agentId, status, customerId, limit, offset</p>
-            </div>
+                <h4>Request:</h4>
+                <p>No request body required. The enrollment is created in an empty state.</p>
 
-            <div class="endpoint">
-                <h3><span class="method patch">PATCH</span> /enrollments/:id/status</h3>
-                <p>Update enrollment status</p>
+                <h4>Response:</h4>
                 <pre>{
-  "status": "in_progress",
-  "metadata": {
-    "note": "Updated status"
+  "success": true,
+  "enrollment": {
+    "id": "uuid",
+    "agent_id": "uuid",
+    "subscriber_id": null,
+    "insured_id": null,
+    "data": {},
+    "created_at": "2026-01-01T10:00:00Z",
+    "updated_at": "2026-01-01T10:00:00Z"
+  },
+  "message": "Enrollment created successfully"
+}</pre>
+
+                <div class="business-rule">
+                    <strong>📋 Business Rules:</strong>
+                    <ul>
+                        <li>New enrollments start empty with no customer data</li>
+                        <li>Both <code>subscriber_id</code> and <code>insured_id</code> are <code>null</code> until customer information is saved</li>
+                        <li>The enrollment is automatically associated with the authenticated agent</li>
+                        <li>There is no status field - all enrollments are editable at any time</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <h3><span class="method get">GET</span> /enrollments <span class="badge badge-updated">Updated</span></h3>
+                <p><strong>Business Purpose:</strong> Retrieve a list of all enrollment applications created by the authenticated agent. This allows agents to view their client portfolio and track application progress.</p>
+
+                <h4>Query Parameters:</h4>
+                <table>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Default</th>
+                    </tr>
+                    <tr>
+                        <td><code>limit</code></td>
+                        <td>integer</td>
+                        <td>Maximum number of results to return</td>
+                        <td>50</td>
+                    </tr>
+                    <tr>
+                        <td><code>offset</code></td>
+                        <td>integer</td>
+                        <td>Number of results to skip (for pagination)</td>
+                        <td>0</td>
+                    </tr>
+                </table>
+
+                <h4>Response:</h4>
+                <pre>{
+  "success": true,
+  "enrollments": [
+    {
+      "id": "uuid",
+      "customer": {
+        "firstName": "Ahmed",
+        "lastName": "El Fassi",
+        "fullName": "Ahmed El Fassi",
+        "email": "ahmed@email.ma",
+        "phone": "0661234567",
+        "cin": "BK2134566",           // Original CIN
+        "cinMasked": "BK****566",     // Masked for privacy
+        "city": "Casablanca"
+      },
+      "status": null,                   // Placeholder for future feature
+      "createdAt": "2026-01-01T10:00:00Z",
+      "updatedAt": "2026-01-01T12:00:00Z"
+    }
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 25
   }
 }</pre>
+
+                <div class="business-rule">
+                    <strong>📋 Business Rules:</strong>
+                    <ul>
+                        <li><strong>Subscriber-First Display:</strong> The <code>customer</code> object always shows the <strong>subscriber</strong> (policy owner), not the insured</li>
+                        <li><strong>CIN Masking:</strong> Customer identification numbers are partially masked for privacy (first 2 + last 3 characters visible)</li>
+                        <li><strong>Agent Filtering:</strong> Results are automatically filtered to only show enrollments created by the authenticated agent</li>
+                        <li><strong>Soft Delete Protection:</strong> Deleted enrollments are never returned in lists</li>
+                        <li><strong>Ordering:</strong> Results ordered by <code>updated_at DESC</code> (most recently modified first)</li>
+                        <li><strong>Empty Enrollments Included:</strong> Enrollments without customer data (newly created) are included in the list</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <h3><span class="method get">GET</span> /enrollments/:id <span class="badge badge-updated">Updated</span></h3>
+                <p><strong>Business Purpose:</strong> Retrieve complete details of a specific enrollment including both subscriber and insured information. This is used when viewing or editing an existing application.</p>
+
+                <h4>Response:</h4>
+                <pre>{
+  "success": true,
+  "enrollment": {
+    "id": "uuid",
+    "agent_id": "uuid",
+    "subscriber_id": "uuid",
+    "insured_id": "uuid",              // NULL if self-insured
+    "data": {
+      "personalInfo": {
+        "insuredSameAsSubscriber": false
+      },
+      "contribution": { /* ... */ },
+      "beneficiaries": [ /* ... */ ]
+    },
+    "created_at": "2026-01-01T10:00:00Z",
+    "updated_at": "2026-01-01T12:00:00Z",
+
+    "subscriber": {                    // Policy owner (payer)
+      "id": "uuid",
+      "cin": "BK2134566",
+      "first_name": "Ahmed",
+      "last_name": "El Fassi",
+      "email": "ahmed@email.ma",
+      "phone": "0661234567",
+      "date_of_birth": "1985-03-15",
+      "birth_place": "Fes",
+      "nationality": "Moroccan",
+      "address": {
+        "street": "Avenue Mohammed V",
+        "city": "Casablanca",
+        "postalCode": "20000"
+      }
+    },
+
+    "insured": {                       // Covered person
+      "id": "uuid",
+      "cin": "CD5678901",
+      "first_name": "Laila",
+      "last_name": "El Fassi",
+      "date_of_birth": "2010-05-10"
+    },
+
+    "customer": { /* same as subscriber - for backward compatibility */ }
+  }
+}</pre>
+
+                <div class="business-rule">
+                    <strong>📋 Business Rules:</strong>
+                    <ul>
+                        <li><strong>Dual Customer Model:</strong> Response includes both <code>subscriber</code> and <code>insured</code> objects</li>
+                        <li><strong>Self-Insured Scenario:</strong> When subscriber = insured, <code>insured_id</code> is <code>null</code> and <code>insured</code> object is <code>null</code></li>
+                        <li><strong>Separate-Insured Scenario:</strong> When subscriber ≠ insured (e.g., parent insuring child), both objects are populated</li>
+                        <li><strong>Backward Compatibility:</strong> <code>customer</code> field always contains subscriber data for legacy support</li>
+                        <li><strong>JSONB Structure:</strong> Personal info is stored in customer records, NOT in <code>data.personalInfo.subscriber/insured</code></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <h3><span class="method put">PUT</span> /enrollments/:id <span class="badge badge-updated">Updated</span></h3>
+                <p><strong>Business Purpose:</strong> Update an enrollment with new information. This is the primary method for saving customer data, contribution details, and beneficiary information as the agent progresses through the application.</p>
+
+                <h4>Request Body:</h4>
+                <pre>{
+  "personalInfo": {
+    "subscriber": {
+      "firstName": "Ahmed",
+      "lastName": "El Fassi",
+      "cin": "BK2134566",
+      "email": "ahmed@email.ma",
+      "phone": "0661234567",
+      "dateOfBirth": "1985-03-15",
+      "placeOfBirth": "Fes",
+      "nationality": "Moroccan",
+      "address": {
+        "street": "Avenue Mohammed V",
+        "city": "Casablanca",
+        "postalCode": "20000"
+      }
+    },
+    "insured": {                         // Optional - only if different from subscriber
+      "firstName": "Laila",
+      "lastName": "El Fassi",
+      "cin": "CD5678901",
+      "dateOfBirth": "2010-05-10"
+    },
+    "insuredSameAsSubscriber": false     // true = self-insured, false = separate insured
+  },
+  "contribution": {
+    "amount": 500,
+    "amountText": "five hundred",
+    "originOfFunds": {
+      "source": "salary",                // "salary", "business", "savings", etc.
+      "employer": "Bank Al Maghrib"      // Optional, if source is "salary"
+    },
+    "paymentMode": {
+      "method": "bank_transfer",         // "bank_transfer", "check", "cash"
+      "frequency": "monthly"             // "monthly", "quarterly", "annually"
+    }
+  },
+  "beneficiaries": [
+    {
+      "firstName": "Fatima",
+      "lastName": "El Fassi",
+      "relationship": "spouse",          // "spouse", "child", "parent", etc.
+      "percentage": 60,
+      "dateOfBirth": "1987-06-20"
+    },
+    {
+      "firstName": "Yasmine",
+      "lastName": "El Fassi",
+      "relationship": "child",
+      "percentage": 40,
+      "dateOfBirth": "2015-09-10"
+    }
+  ]
+}</pre>
+
+                <h4>Response:</h4>
+                <pre>{
+  "success": true,
+  "enrollment": {
+    "id": "uuid",
+    "agent_id": "uuid",
+    "subscriber_id": "uuid",           // Created/updated from subscriber data
+    "insured_id": "uuid",              // Created/updated from insured data (or NULL)
+    "data": {
+      "personalInfo": {
+        "insuredSameAsSubscriber": false  // Only this flag remains in JSONB
+      },
+      "contribution": { /* ... */ },
+      "beneficiaries": [ /* ... */ ]
+    },
+    "created_at": "2026-01-01T10:00:00Z",
+    "updated_at": "2026-01-01T12:30:00Z"
+  },
+  "message": "Enrollment updated successfully"
+}</pre>
+
+                <div class="business-rule">
+                    <strong>📋 Business Rules:</strong>
+                    <ul>
+                        <li><strong>Customer Record Management:</strong>
+                            <ul>
+                                <li>Subscriber data is saved to the <code>customers</code> table and linked via <code>subscriber_id</code></li>
+                                <li>Insured data (if different) is saved to <code>customers</code> table and linked via <code>insured_id</code></li>
+                                <li>Subscriber and insured data are <strong>NOT</strong> stored in JSONB anymore</li>
+                            </ul>
+                        </li>
+                        <li><strong>Self-Insured Logic:</strong>
+                            <ul>
+                                <li>If <code>insuredSameAsSubscriber = true</code>, only subscriber is saved, <code>insured_id</code> set to NULL</li>
+                                <li>If <code>insuredSameAsSubscriber = false</code>, both subscriber and insured are saved as separate customer records</li>
+                            </ul>
+                        </li>
+                        <li><strong>CIN-Based Deduplication:</strong>
+                            <ul>
+                                <li>Existing customers are matched by CIN (National ID number)</li>
+                                <li>If a customer with the same CIN exists, their record is updated</li>
+                                <li>If no match found, a new customer record is created</li>
+                            </ul>
+                        </li>
+                        <li><strong>Beneficiary Validation:</strong>
+                            <ul>
+                                <li>Total beneficiary percentages must equal 100%</li>
+                                <li>Beneficiaries are stored in JSONB (not as separate customer records)</li>
+                            </ul>
+                        </li>
+                        <li><strong>Data Merging:</strong> New data is merged with existing enrollment data (not replaced)</li>
+                        <li><strong>Transaction Safety:</strong> All updates are wrapped in database transactions for data integrity</li>
+                    </ul>
+                </div>
+
+                <div class="warning">
+                    <strong>⚠️ Important Notes:</strong>
+                    <ul>
+                        <li>Switching from self-insured to separate-insured (or vice versa) is supported</li>
+                        <li>Changing <code>insuredSameAsSubscriber</code> flag will automatically adjust <code>insured_id</code></li>
+                        <li>Empty enrollments (no <code>subscriber_id</code>) cannot be queried by ID until customer data is saved</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="endpoint">
                 <h3><span class="method delete">DELETE</span> /enrollments/:id</h3>
-                <p>Cancel enrollment (sets status to cancelled)</p>
-            </div>
-        </div>
+                <p><strong>Business Purpose:</strong> Soft-delete an enrollment application. This marks the enrollment as deleted without physically removing the data, allowing for audit trails and potential recovery.</p>
 
-        <div class="section">
-            <h2>Step Management</h2>
-
-            <div class="endpoint">
-                <h3><span class="method post">POST</span> /enrollments/:id/steps/:stepId</h3>
-                <p>Save step data</p>
+                <h4>Response:</h4>
                 <pre>{
-  "verified": true,
-  "verification_date": "2025-09-30T10:00:00Z"
+  "success": true,
+  "message": "Enrollment deleted successfully"
 }</pre>
-            </div>
 
-            <div class="endpoint">
-                <h3><span class="method get">GET</span> /enrollments/:id/steps/:stepId</h3>
-                <p>Get step data for a specific step</p>
-            </div>
-
-            <div class="endpoint">
-                <h3><span class="method get">GET</span> /enrollments/:id/steps</h3>
-                <p>Get all step data for enrollment</p>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>Billing</h2>
-
-            <div class="endpoint">
-                <h3><span class="method post">POST</span> /enrollments/:id/billing</h3>
-                <p>Save billing data (payment data is encrypted)</p>
-                <pre>{
-  "contribution_amount": 150.00,
-  "contribution_frequency": "monthly",
-  "payment_method_type": "credit_card",
-  "payment_method_last_four": "4242",
-  "payment_method_expiry": "12/27",
-  "payment_method_data": {
-    "card_number": "4242-4242-4242-4242",
-    "cvv": "123"
-  },
-  "effective_date": "2025-11-01"
-}</pre>
-            </div>
-
-            <div class="endpoint">
-                <h3><span class="method get">GET</span> /enrollments/:id/billing</h3>
-                <p>Get billing data (sensitive data is masked)</p>
+                <div class="business-rule">
+                    <strong>📋 Business Rules:</strong>
+                    <ul>
+                        <li><strong>Soft Delete:</strong> Sets <code>deleted_at</code> timestamp instead of physically removing the record</li>
+                        <li><strong>Cascade Behavior:</strong> Customer records are NOT deleted (may be referenced by other enrollments)</li>
+                        <li><strong>List Exclusion:</strong> Deleted enrollments do not appear in list queries</li>
+                        <li><strong>Permanent:</strong> Once deleted, enrollments cannot be restored through the API (requires database admin)</li>
+                    </ul>
+                </div>
             </div>
         </div>
 
         <div class="section">
-            <h2>Beneficiaries</h2>
+            <h2>📂 Step Management (Form Progress)</h2>
 
             <div class="endpoint">
-                <h3><span class="method post">POST</span> /enrollments/:id/beneficiaries</h3>
-                <p>Add beneficiaries (replaces existing beneficiaries)</p>
+                <h3><span class="method get">GET</span> /enrollments/:id/steps/:stepName <span class="badge badge-updated">Updated</span></h3>
+                <p><strong>Business Purpose:</strong> Retrieve data for a specific step in the enrollment form. This is used when loading a particular section of the multi-step enrollment form.</p>
+
+                <h4>Supported Step Names:</h4>
+                <table>
+                    <tr>
+                        <th>Step Name</th>
+                        <th>Business Purpose</th>
+                        <th>Data Source</th>
+                    </tr>
+                    <tr>
+                        <td><code>personal_info</code></td>
+                        <td>Customer identification and demographic information</td>
+                        <td>Customer records (NOT JSONB)</td>
+                    </tr>
+                    <tr>
+                        <td><code>customer_info</code></td>
+                        <td>Alias for personal_info</td>
+                        <td>Customer records (NOT JSONB)</td>
+                    </tr>
+                    <tr>
+                        <td><code>contribution</code></td>
+                        <td>Premium payment details and origin of funds</td>
+                        <td>JSONB</td>
+                    </tr>
+                    <tr>
+                        <td><code>beneficiaries</code></td>
+                        <td>Beneficiary designations and allocations</td>
+                        <td>JSONB</td>
+                    </tr>
+                </table>
+
+                <h4>Response Example (personal_info):</h4>
                 <pre>{
-  "beneficiaries": [
-    {
-      "type": "primary",
-      "first_name": "Jane",
-      "last_name": "Doe",
-      "relationship": "spouse",
-      "percentage": 60,
-      "date_of_birth": "1987-03-20",
-      "ssn": "123-45-6789",
-      "address": {...},
-      "display_order": 1
-    },
-    {
-      "type": "primary",
-      "first_name": "John Jr",
-      "last_name": "Doe",
-      "relationship": "child",
-      "percentage": 40,
-      "date_of_birth": "2010-05-10",
-      "display_order": 2
+  "success": true,
+  "data": {
+    "enrollment_id": "uuid",
+    "step_name": "personal_info",
+    "step_data": {
+      "subscriber": {
+        "firstName": "Ahmed",
+        "lastName": "El Fassi",
+        "cin": "BK2134566",
+        "email": "ahmed@email.ma",
+        "phone": "0661234567",
+        "dateOfBirth": "1985-03-15",
+        "placeOfBirth": "Fes",
+        "nationality": "Moroccan",
+        "address": {
+          "street": "Avenue Mohammed V",
+          "city": "Casablanca",
+          "postalCode": "20000"
+        }
+      },
+      "insured": {                      // NULL if self-insured
+        "firstName": "Laila",
+        "lastName": "El Fassi",
+        "cin": "CD5678901",
+        "dateOfBirth": "2010-05-10"
+      },
+      "insuredSameAsSubscriber": false
     }
-  ]
+  }
 }</pre>
-                <div class="note">
-                    <strong>Note:</strong> Primary beneficiaries must total 100%. Contingent beneficiaries (if any) must also total 100%.
-                </div>
-            </div>
 
-            <div class="endpoint">
-                <h3><span class="method get">GET</span> /enrollments/:id/beneficiaries</h3>
-                <p>Get all beneficiaries for enrollment</p>
-            </div>
+                <h4>Response Example (contribution):</h4>
+                <pre>{
+  "success": true,
+  "data": {
+    "enrollment_id": "uuid",
+    "step_name": "contribution",
+    "step_data": {
+      "amount": 500,
+      "amountText": "five hundred",
+      "originOfFunds": {
+        "source": "salary",
+        "employer": "Bank Al Maghrib"
+      },
+      "paymentMode": {
+        "method": "bank_transfer",
+        "frequency": "monthly"
+      }
+    }
+  }
+}</pre>
 
-            <div class="endpoint">
-                <h3><span class="method put">PUT</span> /enrollments/:id/beneficiaries/:beneficiaryId</h3>
-                <p>Update specific beneficiary</p>
-            </div>
-
-            <div class="endpoint">
-                <h3><span class="method delete">DELETE</span> /enrollments/:id/beneficiaries/:beneficiaryId</h3>
-                <p>Remove beneficiary</p>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>Summary & Submission</h2>
-
-            <div class="endpoint">
-                <h3><span class="method get">GET</span> /enrollments/:id/summary</h3>
-                <p>Get complete enrollment summary including enrollment, billing, beneficiaries, and steps</p>
-            </div>
-
-            <div class="endpoint">
-                <h3><span class="method post">POST</span> /enrollments/:id/submit</h3>
-                <p>Submit enrollment for processing</p>
-                <div class="note">
-                    <strong>Required:</strong> Enrollment must have status "in_progress" and all required steps completed.
+                <div class="business-rule">
+                    <strong>📋 Business Rules:</strong>
+                    <ul>
+                        <li><strong>Personal Info Step:</strong> Data is populated from <code>customers</code> table records (subscriber/insured), NOT from JSONB</li>
+                        <li><strong>Other Steps:</strong> Data is populated from corresponding JSONB paths</li>
+                        <li><strong>Empty Steps:</strong> Returns empty objects/arrays if step has no data yet</li>
+                        <li><strong>Unknown Steps:</strong> Returns entire <code>data</code> JSONB for unrecognized step names</li>
+                    </ul>
                 </div>
             </div>
         </div>
 
         <div class="section">
-            <h2>Enrollment Statuses</h2>
+            <h2>💾 Data Model & Business Rules</h2>
+
+            <h3>Subscriber vs Insured</h3>
+            <p>Yadmanx supports two insurance scenarios:</p>
+
+            <table>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                    <th>Data Model</th>
+                </tr>
+                <tr>
+                    <td><strong>Self-Insured</strong></td>
+                    <td>Policy owner and covered person are the same</td>
+                    <td>Adult purchasing life insurance for themselves</td>
+                    <td><code>subscriber_id</code> set<br><code>insured_id</code> = NULL</td>
+                </tr>
+                <tr>
+                    <td><strong>Separate-Insured</strong></td>
+                    <td>Policy owner and covered person are different people</td>
+                    <td>Parent purchasing life insurance for their child</td>
+                    <td><code>subscriber_id</code> set<br><code>insured_id</code> set</td>
+                </tr>
+            </table>
+
+            <div class="business-rule">
+                <strong>🔑 Key Business Rules:</strong>
+                <ul>
+                    <li><strong>Subscriber Required:</strong> Every enrollment MUST have a subscriber (policy owner/payer)</li>
+                    <li><strong>Insured Optional:</strong> Insured is only created as separate record when different from subscriber</li>
+                    <li><strong>CIN as Unique Identifier:</strong> Moroccan National ID (CIN) is used to identify and deduplicate customers</li>
+                    <li><strong>Customer Reuse:</strong> Same customer can be subscriber in one enrollment and insured in another</li>
+                    <li><strong>No Customer Type Field:</strong> Customer role (subscriber/insured) is determined by foreign key relationship, not by a type field</li>
+                </ul>
+            </div>
+
+            <h3>Data Storage Architecture</h3>
+            <table>
+                <tr>
+                    <th>Data Type</th>
+                    <th>Storage Location</th>
+                    <th>Rationale</th>
+                </tr>
+                <tr>
+                    <td><strong>Subscriber Info</strong></td>
+                    <td><code>customers</code> table</td>
+                    <td>Structured, searchable, reusable across enrollments</td>
+                </tr>
+                <tr>
+                    <td><strong>Insured Info</strong></td>
+                    <td><code>customers</code> table</td>
+                    <td>Structured, searchable, reusable across enrollments</td>
+                </tr>
+                <tr>
+                    <td><strong>Contribution</strong></td>
+                    <td>JSONB (<code>data.contribution</code>)</td>
+                    <td>Flexible schema, enrollment-specific</td>
+                </tr>
+                <tr>
+                    <td><strong>Beneficiaries</strong></td>
+                    <td>JSONB (<code>data.beneficiaries</code>)</td>
+                    <td>Variable number, enrollment-specific</td>
+                </tr>
+                <tr>
+                    <td><strong>insuredSameAsSubscriber</strong></td>
+                    <td>JSONB (<code>data.personalInfo.insuredSameAsSubscriber</code>)</td>
+                    <td>Boolean flag controlling dual-customer logic</td>
+                </tr>
+            </table>
+
+            <h3>CIN (National ID) Masking</h3>
+            <p><strong>Business Purpose:</strong> Protect customer privacy while allowing identification</p>
+            <p><strong>Format:</strong> First 2 characters + **** + Last 3 characters</p>
+            <p><strong>Examples:</strong></p>
             <ul>
-                <li><strong>draft:</strong> Initial state</li>
-                <li><strong>in_progress:</strong> Enrollment is being completed</li>
-                <li><strong>submitted:</strong> Submitted for processing</li>
-                <li><strong>approved:</strong> Enrollment approved</li>
-                <li><strong>rejected:</strong> Enrollment rejected</li>
-                <li><strong>cancelled:</strong> Enrollment cancelled</li>
+                <li><code>BK2134566</code> → <code>BK****566</code></li>
+                <li><code>CD5678901</code> → <code>CD****901</code></li>
             </ul>
+
+            <div class="note">
+                <strong>📝 Note:</strong> CIN masking is applied in list views only. Full CIN is returned in detail views for agent use.
+            </div>
         </div>
 
         <div class="section">
-            <h2>Error Responses</h2>
-            <p>All errors follow this format:</p>
+            <h2>⚠️ Error Handling</h2>
+
+            <h3>Error Response Format</h3>
             <pre>{
-  "error": "Error message here",
-  "stack": "Stack trace (development only)"
+  "success": false,
+  "error": "Descriptive error message"
 }</pre>
-            <p><strong>Common Status Codes:</strong></p>
+
+            <h3>Common HTTP Status Codes</h3>
+            <table>
+                <tr>
+                    <th>Status Code</th>
+                    <th>Meaning</th>
+                    <th>Common Causes</th>
+                </tr>
+                <tr>
+                    <td><code>200 OK</code></td>
+                    <td>Success</td>
+                    <td>Request processed successfully</td>
+                </tr>
+                <tr>
+                    <td><code>201 Created</code></td>
+                    <td>Resource created</td>
+                    <td>New enrollment created</td>
+                </tr>
+                <tr>
+                    <td><code>400 Bad Request</code></td>
+                    <td>Invalid request</td>
+                    <td>Missing required fields, invalid data format</td>
+                </tr>
+                <tr>
+                    <td><code>401 Unauthorized</code></td>
+                    <td>Authentication failed</td>
+                    <td>Missing/invalid JWT token, expired token</td>
+                </tr>
+                <tr>
+                    <td><code>404 Not Found</code></td>
+                    <td>Resource not found</td>
+                    <td>Enrollment ID doesn't exist or belongs to different agent</td>
+                </tr>
+                <tr>
+                    <td><code>500 Internal Server Error</code></td>
+                    <td>Server error</td>
+                    <td>Database connection failure, unexpected error</td>
+                </tr>
+            </table>
+
+            <h3>Business Validation Errors</h3>
             <ul>
-                <li><code>200</code> - Success</li>
-                <li><code>201</code> - Created</li>
-                <li><code>400</code> - Bad Request</li>
-                <li><code>404</code> - Not Found</li>
-                <li><code>500</code> - Internal Server Error</li>
+                <li><strong>Beneficiary Percentage Total:</strong> Must equal 100%</li>
+                <li><strong>Missing Required Fields:</strong> Subscriber firstName, lastName, CIN required</li>
+                <li><strong>Invalid CIN Format:</strong> Must be valid Moroccan National ID format</li>
+                <li><strong>Authorization Failure:</strong> Agent attempting to access another agent's enrollment</li>
             </ul>
+        </div>
+
+        <div class="section">
+            <h2>🔄 Migration from V1 to V2</h2>
+
+            <div class="warning">
+                <strong>⚠️ Breaking Changes:</strong>
+                <ul>
+                    <li><code>customer_id</code> column has been replaced with <code>subscriber_id</code> and <code>insured_id</code></li>
+                    <li>Status field removed - no status tracking in V2</li>
+                    <li>Step data table removed - all data in JSONB</li>
+                    <li>Personal info stored in <code>customers</code> table, not in JSONB</li>
+                </ul>
+            </div>
+
+            <h3>Backward Compatibility</h3>
+            <ul>
+                <li><code>customer</code> field in responses contains subscriber data for legacy support</li>
+                <li>Existing JSONB data with <code>personalInfo.subscriber/insured</code> is still readable</li>
+                <li>New enrollments will NOT write to <code>personalInfo.subscriber/insured</code> in JSONB</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>📊 Example Workflows</h2>
+
+            <h3>Workflow 1: Self-Insured Enrollment</h3>
+            <pre>1. POST /enrollments
+   → Create empty enrollment
+
+2. PUT /enrollments/:id
+   → Save subscriber info with insuredSameAsSubscriber: true
+   → System creates subscriber customer record
+   → insured_id remains NULL
+
+3. PUT /enrollments/:id
+   → Save contribution details
+
+4. PUT /enrollments/:id
+   → Save beneficiaries
+
+5. GET /enrollments/:id
+   → Retrieve complete enrollment for review</pre>
+
+            <h3>Workflow 2: Parent Insuring Child</h3>
+            <pre>1. POST /enrollments
+   → Create empty enrollment
+
+2. PUT /enrollments/:id
+   → Save parent as subscriber
+   → Save child as insured
+   → Set insuredSameAsSubscriber: false
+   → System creates TWO customer records
+   → Links both via subscriber_id and insured_id
+
+3. PUT /enrollments/:id
+   → Save contribution details (parent pays)
+
+4. PUT /enrollments/:id
+   → Save beneficiaries (e.g., parent as beneficiary)
+
+5. GET /enrollments/:id
+   → Retrieve enrollment showing both parent and child info</pre>
+
+            <h3>Workflow 3: Switching from Self-Insured to Separate</h3>
+            <pre>1. Existing enrollment with self-insured setup
+
+2. PUT /enrollments/:id
+   → Update with insuredSameAsSubscriber: false
+   → Add insured person data
+   → System creates insured customer record
+   → Updates insured_id from NULL to new customer ID</pre>
+        </div>
+
+        <div class="section" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-left: 4px solid #3182ce;">
+            <h2>🔄 Sequence Diagrams</h2>
+            <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">Interactive visual diagrams showing the complete enrollment flow from frontend through backend to database.</p>
+
+            <div style="text-align: center; padding: 2rem;">
+                <a href="/api/docs/sequence-diagrams.html" style="display: inline-block; padding: 1rem 2rem; background: #3182ce; color: white; text-decoration: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s;">
+                    📊 View Interactive Sequence Diagrams →
+                </a>
+            </div>
+
+            <div style="margin-top: 1.5rem; padding: 1rem; background: white; border-radius: 6px;">
+                <h3 style="margin-top: 0;">What's included:</h3>
+                <ul style="line-height: 2;">
+                    <li><strong>Self-Insured Enrollment Flow</strong> - Complete flow when subscriber = insured</li>
+                    <li><strong>Separate-Insured Flow</strong> - Parent insuring child scenario</li>
+                    <li><strong>Technical Details</strong> - HTTP methods, database queries, transactions</li>
+                    <li><strong>Business Logic</strong> - CIN deduplication, JSONB cleanup, customer upserts</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" style="display: none;">
+            <h2>🔄 Sequence Diagrams (LEGACY - HIDDEN)</h2>
+            <p>Visual representation of the complete enrollment flow from frontend through backend to database.</p>
+
+            <h3>1. Self-Insured Enrollment Flow</h3>
+            <p>This diagram shows the complete flow when the subscriber is also the insured person (e.g., individual purchasing insurance for themselves).</p>
+
+            <div class="mermaid">
+sequenceDiagram
+    participant U as User/Browser
+    participant F as Frontend App
+    participant API as API Server
+    participant EC as EnrollmentController
+    participant ES as EnrollmentService
+    participant CS as CustomerService
+    participant DB as PostgreSQL
+
+    Note over U,DB: Step 1: Create Empty Enrollment
+    U->>F: Click "Start New Application"
+    F->>API: POST /api/v1/enrollments
+    Note right of API: Headers: x-agent-id
+    API->>EC: createEnrollment(req, res)
+    EC->>ES: create(agentId)
+    ES->>DB: INSERT INTO enrollments<br/>(agent_id, data)<br/>VALUES (?, '{}')
+    DB-->>ES: {id, agent_id, subscriber_id=NULL,<br/>insured_id=NULL, data={}}
+    ES-->>F: 201 Created {enrollment}
+    F->>F: Store enrollment_id<br/>in sessionStorage
+
+    Note over U,DB: Step 2: Save Personal Info (Self-Insured)
+    U->>F: Fill subscriber form<br/>Toggle "I am the insured" = true
+    F->>API: PUT /api/v1/enrollments/:id
+    Note right of API: Body: {personalInfo: {<br/>subscriber: {...},<br/>insuredSameAsSubscriber: true}}
+    API->>EC: updateEnrollment(req, res)
+    EC->>ES: update(enrollmentId, enrollmentData)
+
+    ES->>DB: BEGIN TRANSACTION
+    ES->>ES: Get current enrollment data
+    ES->>CS: mapPersonToDb(subscriber)
+    CS-->>ES: {coreFields, jsonbData}
+    Note right of CS: coreFields: cin, first_name,<br/>last_name, email, phone<br/>jsonbData: dateOfBirth,<br/>placeOfBirth, nationality, etc.
+
+    ES->>CS: _upsertCustomer(coreFields, jsonbData)
+    CS->>DB: SELECT id FROM customers<br/>WHERE cin = ?
+
+    alt Customer exists (CIN match)
+        CS->>DB: UPDATE customers<br/>SET first_name=?, last_name=?,<br/>email=?, phone=?, data=?<br/>WHERE cin=?
+    else New customer
+        CS->>DB: INSERT INTO customers<br/>(cin, first_name, last_name,<br/>email, phone, address, data)
+    end
+
+    DB-->>CS: customer_id
+    CS-->>ES: subscriber_id
+
+    ES->>ES: insuredSameAsSubscriber = true<br/>→ insured_id = NULL
+    ES->>ES: Clean JSONB: Remove<br/>personalInfo.subscriber
+    Note right of ES: Only keep:<br/>personalInfo.insuredSameAsSubscriber
+
+    ES->>DB: UPDATE enrollments<br/>SET data=?, subscriber_id=?,<br/>insured_id=NULL<br/>WHERE id=?
+    ES->>DB: COMMIT TRANSACTION
+    DB-->>ES: Updated enrollment
+    ES-->>F: 200 OK {enrollment}
+
+    Note over U,DB: Step 3: Save Contribution Details
+    U->>F: Enter contribution amount,<br/>payment mode, fund origin
+    F->>API: PUT /api/v1/enrollments/:id
+    Note right of API: Body: {contribution: {<br/>amount, amountText,<br/>originOfFunds, paymentMode}}
+    API->>EC: updateEnrollment(req, res)
+    EC->>ES: update(enrollmentId, data)
+    ES->>DB: UPDATE enrollments<br/>SET data = data || {contribution}
+    DB-->>ES: Updated enrollment
+    ES-->>F: 200 OK
+
+    Note over U,DB: Step 4: Save Beneficiaries
+    U->>F: Add beneficiaries<br/>(spouse, children, etc.)
+    F->>API: PUT /api/v1/enrollments/:id
+    Note right of API: Body: {beneficiaries: [{<br/>firstName, lastName,<br/>relationship, percentage}]}
+    API->>EC: updateEnrollment(req, res)
+    EC->>ES: update(enrollmentId, data)
+    ES->>DB: UPDATE enrollments<br/>SET data = data || {beneficiaries}
+    DB-->>ES: Updated enrollment
+    ES-->>F: 200 OK
+
+    Note over U,DB: Step 5: View Confirmation
+    U->>F: Navigate to confirmation page
+    F->>API: GET /api/v1/enrollments/:id
+    API->>EC: getEnrollment(req, res)
+    EC->>ES: getById(enrollmentId)
+    ES->>DB: SELECT e.*, cs.*<br/>FROM enrollments e<br/>LEFT JOIN customers cs<br/>ON e.subscriber_id = cs.id<br/>WHERE e.id = ?
+    DB-->>ES: enrollment + subscriber data
+    ES->>CS: flattenCustomerRow(subscriber)
+    CS-->>ES: Flattened subscriber object
+    ES-->>F: 200 OK {enrollment,<br/>subscriber, insured=null,<br/>customer (backward compat)}
+    F->>U: Display complete<br/>enrollment summary
+            </div>
+
+            <h3>2. Separate-Insured Enrollment Flow (Parent Insuring Child)</h3>
+            <p>This diagram shows the flow when the subscriber is different from the insured person (e.g., parent purchasing insurance for their child).</p>
+
+            <div class="mermaid">
+sequenceDiagram
+    participant U as User/Browser
+    participant F as Frontend App
+    participant API as API Server
+    participant EC as EnrollmentController
+    participant ES as EnrollmentService
+    participant CS as CustomerService
+    participant DB as PostgreSQL
+
+    Note over U,DB: Step 1: Create Empty Enrollment
+    U->>F: Click "Start New Application"
+    F->>API: POST /api/v1/enrollments
+    API->>EC: createEnrollment(req, res)
+    EC->>ES: create(agentId)
+    ES->>DB: INSERT INTO enrollments<br/>(agent_id, data)<br/>VALUES (?, '{}')
+    DB-->>ES: {id, agent_id, subscriber_id=NULL,<br/>insured_id=NULL, data={}}
+    ES-->>F: 201 Created {enrollment}
+    F->>F: Store enrollment_id
+
+    Note over U,DB: Step 2: Save Personal Info (Separate Insured)
+    U->>F: Fill subscriber form (parent)<br/>Toggle "Insured is different"<br/>Fill insured form (child)
+    F->>API: PUT /api/v1/enrollments/:id
+    Note right of API: Body: {personalInfo: {<br/>subscriber: {parent data},<br/>insured: {child data},<br/>insuredSameAsSubscriber: false}}
+    API->>EC: updateEnrollment(req, res)
+    EC->>ES: update(enrollmentId, enrollmentData)
+
+    ES->>DB: BEGIN TRANSACTION
+
+    rect rgb(240, 248, 255)
+        Note over ES,DB: Process Subscriber (Parent)
+        ES->>CS: mapPersonToDb(subscriber)
+        CS-->>ES: {coreFields, jsonbData}
+        ES->>CS: _upsertCustomer(subscriber data)
+        CS->>DB: SELECT id FROM customers<br/>WHERE cin = parent_cin
+
+        alt Parent customer exists
+            CS->>DB: UPDATE customers (parent)
+        else New parent customer
+            CS->>DB: INSERT INTO customers (parent)
+        end
+
+        DB-->>CS: parent_customer_id
+        CS-->>ES: subscriber_id
+    end
+
+    rect rgb(255, 248, 240)
+        Note over ES,DB: Process Insured (Child)
+        ES->>ES: Check insuredSameAsSubscriber = false
+        ES->>CS: mapPersonToDb(insured)
+        CS-->>ES: {coreFields, jsonbData}
+        ES->>CS: _upsertCustomer(insured data)
+        CS->>DB: SELECT id FROM customers<br/>WHERE cin = child_cin
+
+        alt Child customer exists
+            CS->>DB: UPDATE customers (child)
+        else New child customer
+            CS->>DB: INSERT INTO customers (child)
+        end
+
+        DB-->>CS: child_customer_id
+        CS-->>ES: insured_id
+    end
+
+    ES->>ES: Clean JSONB: Remove<br/>personalInfo.subscriber AND<br/>personalInfo.insured
+    Note right of ES: Only keep:<br/>personalInfo.insuredSameAsSubscriber
+
+    ES->>DB: UPDATE enrollments<br/>SET data=?,<br/>subscriber_id=parent_id,<br/>insured_id=child_id<br/>WHERE id=?
+    ES->>DB: COMMIT TRANSACTION
+    DB-->>ES: Updated enrollment
+    ES-->>F: 200 OK {enrollment}
+
+    Note over U,DB: Step 3: Save Contribution Details
+    U->>F: Enter contribution details
+    F->>API: PUT /api/v1/enrollments/:id
+    API->>ES: update(enrollmentId, {contribution})
+    ES->>DB: UPDATE enrollments<br/>SET data = data || {contribution}
+    ES-->>F: 200 OK
+
+    Note over U,DB: Step 4: Save Beneficiaries
+    U->>F: Add beneficiaries
+    F->>API: PUT /api/v1/enrollments/:id
+    API->>ES: update(enrollmentId, {beneficiaries})
+    ES->>DB: UPDATE enrollments<br/>SET data = data || {beneficiaries}
+    ES-->>F: 200 OK
+
+    Note over U,DB: Step 5: View Confirmation (with Both Customers)
+    U->>F: Navigate to confirmation page
+    F->>API: GET /api/v1/enrollments/:id
+    API->>EC: getEnrollment(req, res)
+    EC->>ES: getById(enrollmentId)
+    ES->>DB: SELECT e.*, cs.*, ci.*<br/>FROM enrollments e<br/>LEFT JOIN customers cs<br/>ON e.subscriber_id = cs.id<br/>LEFT JOIN customers ci<br/>ON e.insured_id = ci.id<br/>WHERE e.id = ?
+    DB-->>ES: enrollment + subscriber + insured
+    ES->>CS: flattenCustomerRow(subscriber)
+    CS-->>ES: Flattened subscriber
+    ES->>CS: flattenCustomerRow(insured)
+    CS-->>ES: Flattened insured
+    ES-->>F: 200 OK {enrollment,<br/>subscriber (parent),<br/>insured (child),<br/>customer (parent, backward compat)}
+    F->>U: Display complete enrollment<br/>with both parent and child info
+            </div>
+
+            <h3>Key Differences Between Flows</h3>
+            <div class="business-rule">
+                <strong>Self-Insured (Diagram 1):</strong>
+                <ul>
+                    <li>Only ONE customer record created (subscriber)</li>
+                    <li><code>insured_id = NULL</code> in database</li>
+                    <li><code>personalInfo.insuredSameAsSubscriber = true</code> in JSONB</li>
+                    <li>GET response returns <code>insured = null</code></li>
+                </ul>
+
+                <strong>Separate-Insured (Diagram 2):</strong>
+                <ul>
+                    <li>TWO customer records created (subscriber + insured)</li>
+                    <li>Both <code>subscriber_id</code> and <code>insured_id</code> populated</li>
+                    <li><code>personalInfo.insuredSameAsSubscriber = false</code> in JSONB</li>
+                    <li>GET response returns both <code>subscriber</code> and <code>insured</code> objects</li>
+                </ul>
+
+                <strong>JSONB Cleanup (Both Flows):</strong>
+                <ul>
+                    <li>❌ <code>personalInfo.subscriber</code> - REMOVED (stored in customers table)</li>
+                    <li>❌ <code>personalInfo.insured</code> - REMOVED (stored in customers table)</li>
+                    <li>✅ <code>personalInfo.insuredSameAsSubscriber</code> - KEPT (business logic flag)</li>
+                    <li>✅ <code>contribution</code> - KEPT (enrollment-specific data)</li>
+                    <li>✅ <code>beneficiaries</code> - KEPT (enrollment-specific data)</li>
+                </ul>
+            </div>
+
+            <h3>Technical Notes</h3>
+            <ul>
+                <li><strong>Authentication:</strong> All requests use <code>x-agent-id</code> header (dev) or JWT Bearer token (production)</li>
+                <li><strong>CIN Deduplication:</strong> Customers are matched by CIN (Moroccan National ID). Existing customers are updated, new ones created.</li>
+                <li><strong>Transaction Safety:</strong> All multi-step updates (create customer + update enrollment) wrapped in database transactions with ROLLBACK on error</li>
+                <li><strong>Soft Deletes:</strong> All queries filter by <code>deleted_at IS NULL</code></li>
+                <li><strong>Auto-save:</strong> Frontend auto-saves on field blur for better UX (see InsuranceForm.tsx lines 563-592)</li>
+                <li><strong>Backward Compatibility:</strong> GET response includes <code>customer</code> field (alias for subscriber) to support legacy frontend code</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>📝 Development Notes</h2>
+
+            <h3>Database Schema</h3>
+            <pre>enrollments
+  - id: UUID (primary key)
+  - agent_id: UUID (foreign key to agents)
+  - subscriber_id: UUID (foreign key to customers) - nullable
+  - insured_id: UUID (foreign key to customers) - nullable
+  - data: JSONB (contribution, beneficiaries, insuredSameAsSubscriber flag)
+  - created_at: timestamp
+  - updated_at: timestamp
+  - deleted_at: timestamp (soft delete)
+
+customers
+  - id: UUID (primary key)
+  - cin: varchar (Moroccan National ID)
+  - first_name: varchar
+  - last_name: varchar
+  - email: varchar
+  - phone: varchar
+  - address: jsonb
+  - data: jsonb (dateOfBirth, placeOfBirth, nationality, etc.)
+  - created_at: timestamp
+  - updated_at: timestamp
+  - deleted_at: timestamp</pre>
+
+            <h3>Important Indexes</h3>
+            <ul>
+                <li><code>idx_enrollments_agent_id</code> - Agent filtering</li>
+                <li><code>idx_enrollments_subscriber_id</code> - Subscriber lookups</li>
+                <li><code>idx_enrollments_insured_id</code> - Insured lookups</li>
+                <li><code>idx_enrollments_deleted_at</code> - Soft delete filtering</li>
+                <li><code>idx_customers_cin</code> - CIN-based deduplication</li>
+            </ul>
+        </div>
+
+        <div class="section" style="background: #f0fdf4; border-left: 4px solid #22c55e;">
+            <h2>✅ API Health Check</h2>
+            <div class="endpoint">
+                <h3><span class="method get">GET</span> /health</h3>
+                <p>Check service availability and database connectivity</p>
+                <pre>{
+  "status": "healthy",
+  "timestamp": "2026-01-01T10:00:00Z",
+  "database": "connected"
+}</pre>
+            </div>
         </div>
     </div>
 </body>
