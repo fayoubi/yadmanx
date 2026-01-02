@@ -11,8 +11,8 @@ const Dashboard: React.FC = () => {
     if (!token || !agent) return;
 
     try {
-      // Create new enrollment via agent-service
-      const response = await fetch('http://localhost:3003/api/v1/agents/enrollments', {
+      // Create new enrollment via enrollment-service
+      const response = await fetch('http://localhost:3002/api/v1/enrollments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

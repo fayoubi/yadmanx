@@ -19,7 +19,7 @@
 ### Content Requirements
 
 1. **Company Overview Section**
-   - [ ] Display YadmanX company name and tagline prominently
+   - [ ] Display YadmanX company name and tagline prominently\
    - [ ] Brief description of YadmanX as an end-to-end insurtech platform
    - [ ] Mention leadership and company background
    - [ ] Position as modern alternative to legacy insurance systems

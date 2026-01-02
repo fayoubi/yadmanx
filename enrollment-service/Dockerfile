@@ -33,9 +33,11 @@ RUN addgroup -g 1001 -S nodejs && \
 # Set working directory
 WORKDIR /app
 
-# Install production dependencies only
+# Copy package files
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+
+# Copy node_modules from base stage (includes all dependencies)
+COPY --from=base /app/node_modules ./node_modules
 
 # Copy application
 COPY --from=base /app/src ./src

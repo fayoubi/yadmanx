@@ -3,3 +3,4 @@ build/
 claude-api-key.md
 .env
 .DS_Store
+stories/

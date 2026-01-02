@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enrollment Flow - Sequence Diagrams</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #1a202c;
+            background-color: #f7fafc;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a365d, #3182ce);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        .section {
+            background: white;
+            margin: 2rem 0;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #1a365d;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #3182ce;
+            padding-bottom: 0.5rem;
+        }
+        h3 {
+            color: #2d3748;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .business-rule {
+            background: #f0f9ff;
+            border-left: 4px solid #3182ce;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+        .business-rule strong {
+            color: #1a365d;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        .business-rule ul {
+            margin-left: 1.5rem;
+        }
+        .business-rule li {
+            margin: 0.25rem 0;
+        }
+        code {
+            background: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1rem;
+            padding: 0.5rem 1rem;
+            background: #3182ce;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        .back-link:hover {
+            background: #2c5aa0;
+        }
+        /* Mermaid diagram container */
+        .mermaid {
+            background: white;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔄 Enrollment Flow Sequence Diagrams</h1>
+        <p>Visual representation of the complete enrollment flow from frontend through backend to database</p>
+    </div>
+
+    <div class="container">
+        <a href="/api/docs/" class="back-link">← Back to API Documentation</a>
+
+        <div class="section">
+            <h2>1. Self-Insured Enrollment Flow</h2>
+            <p>This diagram shows the complete flow when the subscriber is also the insured person (e.g., individual purchasing insurance for themselves).</p>
+
+            <div class="mermaid">
+sequenceDiagram
+    participant U as User/Browser
+    participant F as Frontend App
+    participant API as API Server
+    participant EC as EnrollmentController
+    participant ES as EnrollmentService
+    participant CS as CustomerService
+    participant DB as PostgreSQL
+
+    Note over U,DB: Step 1: Create Empty Enrollment
+    U->>F: Click "Start New Application"
+    F->>API: POST /api/v1/enrollments
+    Note right of API: Headers: x-agent-id
+    API->>EC: createEnrollment(req, res)
+    EC->>ES: create(agentId)
+    ES->>DB: INSERT INTO enrollments<br/>(agent_id, data)<br/>VALUES (?, '{}')
+    DB-->>ES: {id, agent_id, subscriber_id=NULL,<br/>insured_id=NULL, data={}}
+    ES-->>F: 201 Created {enrollment}
+    F->>F: Store enrollment_id<br/>in sessionStorage
+
+    Note over U,DB: Step 2: Save Personal Info (Self-Insured)
+    U->>F: Fill subscriber form<br/>Toggle "I am the insured" = true
+    F->>API: PUT /api/v1/enrollments/:id
+    Note right of API: Body: {personalInfo: {<br/>subscriber: {...},<br/>insuredSameAsSubscriber: true}}
+    API->>EC: updateEnrollment(req, res)
+    EC->>ES: update(enrollmentId, enrollmentData)
+
+    ES->>DB: BEGIN TRANSACTION
+    ES->>ES: Get current enrollment data
+    ES->>CS: mapPersonToDb(subscriber)
+    CS-->>ES: {coreFields, jsonbData}
+    Note right of CS: coreFields: cin, first_name,<br/>last_name, email, phone<br/>jsonbData: dateOfBirth,<br/>placeOfBirth, nationality, etc.
+
+    ES->>CS: _upsertCustomer(coreFields, jsonbData)
+    CS->>DB: SELECT id FROM customers<br/>WHERE cin = ?
+
+    alt Customer exists (CIN match)
+        CS->>DB: UPDATE customers<br/>SET first_name=?, last_name=?,<br/>email=?, phone=?, data=?<br/>WHERE cin=?
+    else New customer
+        CS->>DB: INSERT INTO customers<br/>(cin, first_name, last_name,<br/>email, phone, address, data)
+    end
+
+    DB-->>CS: customer_id
+    CS-->>ES: subscriber_id
+
+    ES->>ES: insuredSameAsSubscriber = true<br/>→ insured_id = NULL
+    ES->>ES: Clean JSONB: Remove<br/>personalInfo.subscriber
+    Note right of ES: Only keep:<br/>personalInfo.insuredSameAsSubscriber
+
+    ES->>DB: UPDATE enrollments<br/>SET data=?, subscriber_id=?,<br/>insured_id=NULL<br/>WHERE id=?
+    ES->>DB: COMMIT TRANSACTION
+    DB-->>ES: Updated enrollment
+    ES-->>F: 200 OK {enrollment}
+
+    Note over U,DB: Step 3: Save Contribution Details
+    U->>F: Enter contribution amount,<br/>payment mode, fund origin
+    F->>API: PUT /api/v1/enrollments/:id
+    Note right of API: Body: {contribution: {<br/>amount, amountText,<br/>originOfFunds, paymentMode}}
+    API->>EC: updateEnrollment(req, res)
+    EC->>ES: update(enrollmentId, data)
+    ES->>DB: UPDATE enrollments<br/>SET data = data || {contribution}
+    DB-->>ES: Updated enrollment
+    ES-->>F: 200 OK
+
+    Note over U,DB: Step 4: Save Beneficiaries
+    U->>F: Add beneficiaries<br/>(spouse, children, etc.)
+    F->>API: PUT /api/v1/enrollments/:id
+    Note right of API: Body: {beneficiaries: [{<br/>firstName, lastName,<br/>relationship, percentage}]}
+    API->>EC: updateEnrollment(req, res)
+    EC->>ES: update(enrollmentId, data)
+    ES->>DB: UPDATE enrollments<br/>SET data = data || {beneficiaries}
+    DB-->>ES: Updated enrollment
+    ES-->>F: 200 OK
+
+    Note over U,DB: Step 5: View Confirmation
+    U->>F: Navigate to confirmation page
+    F->>API: GET /api/v1/enrollments/:id
+    API->>EC: getEnrollment(req, res)
+    EC->>ES: getById(enrollmentId)
+    ES->>DB: SELECT e.*, cs.*<br/>FROM enrollments e<br/>LEFT JOIN customers cs<br/>ON e.subscriber_id = cs.id<br/>WHERE e.id = ?
+    DB-->>ES: enrollment + subscriber data
+    ES->>CS: flattenCustomerRow(subscriber)
+    CS-->>ES: Flattened subscriber object
+    ES-->>F: 200 OK {enrollment,<br/>subscriber, insured=null,<br/>customer (backward compat)}
+    F->>U: Display complete<br/>enrollment summary
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>2. Separate-Insured Enrollment Flow (Parent Insuring Child)</h2>
+            <p>This diagram shows the flow when the subscriber is different from the insured person (e.g., parent purchasing insurance for their child).</p>
+
+            <div class="mermaid">
+sequenceDiagram
+    participant U as User/Browser
+    participant F as Frontend App
+    participant API as API Server
+    participant EC as EnrollmentController
+    participant ES as EnrollmentService
+    participant CS as CustomerService
+    participant DB as PostgreSQL
+
+    Note over U,DB: Step 1: Create Empty Enrollment
+    U->>F: Click "Start New Application"
+    F->>API: POST /api/v1/enrollments
+    API->>EC: createEnrollment(req, res)
+    EC->>ES: create(agentId)
+    ES->>DB: INSERT INTO enrollments<br/>(agent_id, data)<br/>VALUES (?, '{}')
+    DB-->>ES: {id, agent_id, subscriber_id=NULL,<br/>insured_id=NULL, data={}}
+    ES-->>F: 201 Created {enrollment}
+    F->>F: Store enrollment_id
+
+    Note over U,DB: Step 2: Save Personal Info (Separate Insured)
+    U->>F: Fill subscriber form (parent)<br/>Toggle "Insured is different"<br/>Fill insured form (child)
+    F->>API: PUT /api/v1/enrollments/:id
+    Note right of API: Body: {personalInfo: {<br/>subscriber: {parent data},<br/>insured: {child data},<br/>insuredSameAsSubscriber: false}}
+    API->>EC: updateEnrollment(req, res)
+    EC->>ES: update(enrollmentId, enrollmentData)
+
+    ES->>DB: BEGIN TRANSACTION
+
+    rect rgb(240, 248, 255)
+        Note over ES,DB: Process Subscriber (Parent)
+        ES->>CS: mapPersonToDb(subscriber)
+        CS-->>ES: {coreFields, jsonbData}
+        ES->>CS: _upsertCustomer(subscriber data)
+        CS->>DB: SELECT id FROM customers<br/>WHERE cin = parent_cin
+
+        alt Parent customer exists
+            CS->>DB: UPDATE customers (parent)
+        else New parent customer
+            CS->>DB: INSERT INTO customers (parent)
+        end
+
+        DB-->>CS: parent_customer_id
+        CS-->>ES: subscriber_id
+    end
+
+    rect rgb(255, 248, 240)
+        Note over ES,DB: Process Insured (Child)
+        ES->>ES: Check insuredSameAsSubscriber = false
+        ES->>CS: mapPersonToDb(insured)
+        CS-->>ES: {coreFields, jsonbData}
+        ES->>CS: _upsertCustomer(insured data)
+        CS->>DB: SELECT id FROM customers<br/>WHERE cin = child_cin
+
+        alt Child customer exists
+            CS->>DB: UPDATE customers (child)
+        else New child customer
+            CS->>DB: INSERT INTO customers (child)
+        end
+
+        DB-->>CS: child_customer_id
+        CS-->>ES: insured_id
+    end
+
+    ES->>ES: Clean JSONB: Remove<br/>personalInfo.subscriber AND<br/>personalInfo.insured
+    Note right of ES: Only keep:<br/>personalInfo.insuredSameAsSubscriber
+
+    ES->>DB: UPDATE enrollments<br/>SET data=?,<br/>subscriber_id=parent_id,<br/>insured_id=child_id<br/>WHERE id=?
+    ES->>DB: COMMIT TRANSACTION
+    DB-->>ES: Updated enrollment
+    ES-->>F: 200 OK {enrollment}
+
+    Note over U,DB: Step 3: Save Contribution Details
+    U->>F: Enter contribution details
+    F->>API: PUT /api/v1/enrollments/:id
+    API->>ES: update(enrollmentId, {contribution})
+    ES->>DB: UPDATE enrollments<br/>SET data = data || {contribution}
+    ES-->>F: 200 OK
+
+    Note over U,DB: Step 4: Save Beneficiaries
+    U->>F: Add beneficiaries
+    F->>API: PUT /api/v1/enrollments/:id
+    API->>ES: update(enrollmentId, {beneficiaries})
+    ES->>DB: UPDATE enrollments<br/>SET data = data || {beneficiaries}
+    ES-->>F: 200 OK
+
+    Note over U,DB: Step 5: View Confirmation (with Both Customers)
+    U->>F: Navigate to confirmation page
+    F->>API: GET /api/v1/enrollments/:id
+    API->>EC: getEnrollment(req, res)
+    EC->>ES: getById(enrollmentId)
+    ES->>DB: SELECT e.*, cs.*, ci.*<br/>FROM enrollments e<br/>LEFT JOIN customers cs<br/>ON e.subscriber_id = cs.id<br/>LEFT JOIN customers ci<br/>ON e.insured_id = ci.id<br/>WHERE e.id = ?
+    DB-->>ES: enrollment + subscriber + insured
+    ES->>CS: flattenCustomerRow(subscriber)
+    CS-->>ES: Flattened subscriber
+    ES->>CS: flattenCustomerRow(insured)
+    CS-->>ES: Flattened insured
+    ES-->>F: 200 OK {enrollment,<br/>subscriber (parent),<br/>insured (child),<br/>customer (parent, backward compat)}
+    F->>U: Display complete enrollment<br/>with both parent and child info
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Key Differences Between Flows</h2>
+
+            <div class="business-rule">
+                <strong>Self-Insured (Diagram 1):</strong>
+                <ul>
+                    <li>Only ONE customer record created (subscriber)</li>
+                    <li><code>insured_id = NULL</code> in database</li>
+                    <li><code>personalInfo.insuredSameAsSubscriber = true</code> in JSONB</li>
+                    <li>GET response returns <code>insured = null</code></li>
+                </ul>
+            </div>
+
+            <div class="business-rule">
+                <strong>Separate-Insured (Diagram 2):</strong>
+                <ul>
+                    <li>TWO customer records created (subscriber + insured)</li>
+                    <li>Both <code>subscriber_id</code> and <code>insured_id</code> populated</li>
+                    <li><code>personalInfo.insuredSameAsSubscriber = false</code> in JSONB</li>
+                    <li>GET response returns both <code>subscriber</code> and <code>insured</code> objects</li>
+                </ul>
+            </div>
+
+            <div class="business-rule">
+                <strong>JSONB Cleanup (Both Flows):</strong>
+                <ul>
+                    <li>❌ <code>personalInfo.subscriber</code> - REMOVED (stored in customers table)</li>
+                    <li>❌ <code>personalInfo.insured</code> - REMOVED (stored in customers table)</li>
+                    <li>✅ <code>personalInfo.insuredSameAsSubscriber</code> - KEPT (business logic flag)</li>
+                    <li>✅ <code>contribution</code> - KEPT (enrollment-specific data)</li>
+                    <li>✅ <code>beneficiaries</code> - KEPT (enrollment-specific data)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Technical Notes</h2>
+            <ul>
+                <li><strong>Authentication:</strong> All requests use <code>x-agent-id</code> header (dev) or JWT Bearer token (production)</li>
+                <li><strong>CIN Deduplication:</strong> Customers are matched by CIN (Moroccan National ID). Existing customers are updated, new ones created.</li>
+                <li><strong>Transaction Safety:</strong> All multi-step updates (create customer + update enrollment) wrapped in database transactions with ROLLBACK on error</li>
+                <li><strong>Soft Deletes:</strong> All queries filter by <code>deleted_at IS NULL</code></li>
+                <li><strong>Auto-save:</strong> Frontend auto-saves on field blur for better UX (see InsuranceForm.tsx lines 563-592)</li>
+                <li><strong>Backward Compatibility:</strong> GET response includes <code>customer</code> field (alias for subscriber) to support legacy frontend code</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Mermaid.js for rendering sequence diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <script>
+        // Initialize Mermaid with explicit settings
+        document.addEventListener('DOMContentLoaded', function() {
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'default',
+                logLevel: 'debug',
+                securityLevel: 'loose',
+                flowchart: {
+                    useMaxWidth: true,
+                    htmlLabels: true
+                },
+                sequence: {
+                    diagramMarginX: 20,
+                    diagramMarginY: 20,
+                    actorMargin: 80,
+                    width: 180,
+                    height: 50,
+                    boxMargin: 10,
+                    boxTextMargin: 5,
+                    noteMargin: 10,
+                    messageMargin: 35,
+                    mirrorActors: true,
+                    useMaxWidth: true,
+                    wrap: true
+                }
+            });
+
+            // Force render all mermaid diagrams
+            mermaid.run({
+                querySelector: '.mermaid'
+            }).catch(err => {
+                console.error('Mermaid rendering error:', err);
+            });
+        });
+    </script>
+</body>
+</html>

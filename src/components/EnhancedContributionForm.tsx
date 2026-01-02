@@ -311,55 +311,41 @@ const EnhancedContributionForm: React.FC = () => {
 
     if (validateSection2()) {
       try {
-        // Save billing data to enrollment service
-        const billingData = {
-          contribution_amount: formData.amount.toString(),
-          contribution_frequency: formData.frequency,
-          payment_method_type: paymentConfig.paymentMode.mode,
-          payment_method_last_four: paymentConfig.paymentMode.mode === 'bank_draft' && paymentConfig.paymentMode.accountNumber
-            ? paymentConfig.paymentMode.accountNumber.slice(-4)
-            : paymentConfig.paymentMode.mode === 'check' && paymentConfig.paymentMode.checkNumber
-            ? paymentConfig.paymentMode.checkNumber.slice(-4)
-            : null,
-          payment_method_data: JSON.stringify({
-            initial_payment_amount: paymentConfig.initialPayment.amount,
-            fund_origins: paymentConfig.fundOrigins.selected,
-            fund_origin_other: paymentConfig.fundOrigins.otherDescription || null,
-            bank_name: paymentConfig.paymentMode.bankName,
-            agency_name: paymentConfig.paymentMode.agencyName,
-            check_number: paymentConfig.paymentMode.mode === 'check' ? paymentConfig.paymentMode.checkNumber : null,
-            account_number: paymentConfig.paymentMode.mode === 'bank_draft' ? paymentConfig.paymentMode.accountNumber : null,
-          }),
-          effective_date: new Date().toISOString().split('T')[0],
-        };
+        // Save contribution data using V2 PUT endpoint
+        const agentId = sessionStorage.getItem('agent_id') || '11111111-1111-1111-1111-111111111111';
 
-        const response = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}/billing`, {
-          method: 'POST',
+        const updateResponse = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}`, {
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(billingData)
-        });
-
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-          throw new Error(data.error || 'Failed to save billing data');
-        }
-
-        // Save step data
-        await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}/steps/billing`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'x-agent-id': agentId
           },
           body: JSON.stringify({
-            contribution: formData,
-            paymentConfig
+            contribution: {
+              amount: formData.amount,
+              frequency: formData.frequency,
+              initialPayment: {
+                amount: paymentConfig.initialPayment.amount
+              },
+              fundOrigins: {
+                selected: paymentConfig.fundOrigins.selected,
+                otherDescription: paymentConfig.fundOrigins.otherDescription || null
+              },
+              paymentMode: {
+                mode: paymentConfig.paymentMode.mode,
+                bankName: paymentConfig.paymentMode.bankName,
+                agencyName: paymentConfig.paymentMode.agencyName,
+                checkNumber: paymentConfig.paymentMode.mode === 'check' ? paymentConfig.paymentMode.checkNumber : null,
+                accountNumber: paymentConfig.paymentMode.mode === 'bank_draft' ? paymentConfig.paymentMode.accountNumber : null
+              },
+              effectiveDate: new Date().toISOString().split('T')[0]
+            }
           })
         });
+
+        if (!updateResponse.ok) {
+          throw new Error('Failed to save contribution information');
+        }
 
         // Navigate to beneficiaries page with enrollment ID
         navigate(`/enroll/beneficiaries?enrollmentId=${enrollmentId}`);
@@ -741,7 +727,45 @@ const EnhancedContributionForm: React.FC = () => {
           <div className="flex justify-between">
             <Button
               variant="outline"
-              onClick={() => navigate('/enroll/start')}
+              onClick={async () => {
+                // Save current contribution data before navigating back
+                if (enrollmentId && formData.amount) {
+                  const agentId = sessionStorage.getItem('agent_id') || '11111111-1111-1111-1111-111111111111';
+                  try {
+                    await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'x-agent-id': agentId
+                      },
+                      body: JSON.stringify({
+                        contribution: {
+                          amount: formData.amount,
+                          frequency: formData.frequency,
+                          initialPayment: {
+                            amount: paymentConfig.initialPayment.amount
+                          },
+                          fundOrigins: {
+                            selected: paymentConfig.fundOrigins.selected,
+                            otherDescription: paymentConfig.fundOrigins.otherDescription || null
+                          },
+                          paymentMode: {
+                            mode: paymentConfig.paymentMode.mode,
+                            bankName: paymentConfig.paymentMode.bankName,
+                            agencyName: paymentConfig.paymentMode.agencyName,
+                            checkNumber: paymentConfig.paymentMode.mode === 'check' ? paymentConfig.paymentMode.checkNumber : null,
+                            accountNumber: paymentConfig.paymentMode.mode === 'bank_draft' ? paymentConfig.paymentMode.accountNumber : null
+                          },
+                          effectiveDate: new Date().toISOString().split('T')[0]
+                        }
+                      })
+                    });
+                  } catch (error) {
+                    console.error('Failed to save before navigation:', error);
+                  }
+                }
+                navigate('/enroll/start');
+              }}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />

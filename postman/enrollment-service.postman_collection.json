@@ -1,0 +1,881 @@
+{
+	"info": {
+		"_postman_id": "enrollment-service-api-v2",
+		"name": "YadmanX - Enrollment Service API v2",
+		"description": "Complete API collection for testing enrollment service endpoints with JWT authentication. Covers CRUD operations, validation tests, and subscriber/insured scenarios.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Collection-level pre-request script",
+					"// Automatically adds JWT token to all requests",
+					"if (pm.environment.get('jwt_token')) {",
+					"    pm.request.headers.upsert({",
+					"        key: 'Authorization',",
+					"        value: 'Bearer ' + pm.environment.get('jwt_token')",
+					"    });",
+					"}",
+					"",
+					"// Log request for debugging",
+					"console.log('Request: ' + pm.request.method + ' ' + pm.request.url);"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Collection-level tests - run on all requests",
+					"pm.test('Response time is acceptable (< 2000ms)', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(2000);",
+					"});",
+					"",
+					"if (pm.response.code !== 401 && pm.response.code !== 404) {",
+					"    pm.test('Content-Type is application/json', function () {",
+					"        pm.response.to.have.header('Content-Type', /application\\/json/);",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"item": [
+		{
+			"name": "1. Setup & Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Check if the enrollment service is running and healthy."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Enrollment CRUD - Happy Path",
+			"item": [
+				{
+					"name": "Create New Enrollment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has success flag', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Response contains enrollment object', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment).to.exist;",
+									"    pm.expect(jsonData.enrollment).to.have.property('id');",
+									"    pm.expect(jsonData.enrollment).to.have.property('agent_id');",
+									"    pm.expect(jsonData.enrollment).to.have.property('data');",
+									"});",
+									"",
+									"pm.test('Enrollment ID is a valid UUID', function () {",
+									"    var jsonData = pm.response.json();",
+									"    var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;",
+									"    pm.expect(jsonData.enrollment.id).to.match(uuidRegex);",
+									"});",
+									"",
+									"// Save enrollment ID for subsequent requests",
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('enrollment_id', jsonData.enrollment.id);",
+									"    console.log('Saved enrollment_id: ' + jsonData.enrollment.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments"]
+						},
+						"description": "Create a new enrollment record. Returns a new enrollment with a UUID and empty data object."
+					},
+					"response": []
+				},
+				{
+					"name": "List All Enrollments",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has enrollments array', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollments).to.be.an('array');",
+									"});",
+									"",
+									"pm.test('Response has pagination object', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.pagination).to.exist;",
+									"    pm.expect(jsonData.pagination).to.have.property('limit');",
+									"    pm.expect(jsonData.pagination).to.have.property('offset');",
+									"    pm.expect(jsonData.pagination).to.have.property('total');",
+									"});",
+									"",
+									"pm.test('Enrollment objects have required fields', function () {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.enrollments.length > 0) {",
+									"        var enrollment = jsonData.enrollments[0];",
+									"        pm.expect(enrollment).to.have.property('id');",
+									"        pm.expect(enrollment).to.have.property('customer');",
+									"        pm.expect(enrollment).to.have.property('createdAt');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments?limit=50&offset=0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50",
+									"description": "Maximum number of results to return"
+								},
+								{
+									"key": "offset",
+									"value": "0",
+									"description": "Pagination offset"
+								}
+							]
+						},
+						"description": "Retrieve all enrollments for the authenticated agent with pagination support."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Enrollment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains full enrollment details', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment).to.exist;",
+									"    pm.expect(jsonData.enrollment).to.have.property('id');",
+									"    pm.expect(jsonData.enrollment).to.have.property('agent_id');",
+									"    pm.expect(jsonData.enrollment).to.have.property('subscriber_id');",
+									"    pm.expect(jsonData.enrollment).to.have.property('data');",
+									"});",
+									"",
+									"pm.test('Enrollment has timestamps', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.created_at).to.exist;",
+									"    pm.expect(jsonData.enrollment.updated_at).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
+						},
+						"description": "Retrieve a single enrollment by ID, including subscriber, insured, and all enrollment data."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Enrollment Step - Personal Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains step data', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.exist;",
+									"    pm.expect(jsonData.data.step_name).to.eql('personal_info');",
+									"    pm.expect(jsonData.data.step_data).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}/steps/personal_info",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}", "steps", "personal_info"]
+						},
+						"description": "Retrieve enrollment data for a specific step (personal_info, contribution, beneficiaries)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Enrollment - Subscriber Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Enrollment updated successfully', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.message).to.include('updated');",
+									"});",
+									"",
+									"pm.test('Subscriber data is saved', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.subscriber).to.exist;",
+									"    pm.expect(jsonData.enrollment.subscriber.first_name).to.eql('Ahmed');",
+									"    pm.expect(jsonData.enrollment.subscriber.cin).to.eql('BK123456789');",
+									"});",
+									"",
+									"pm.test('Contribution data is saved', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.data.contribution).to.exist;",
+									"    pm.expect(jsonData.enrollment.data.contribution.amount).to.eql(500);",
+									"});",
+									"",
+									"pm.test('Beneficiaries are saved', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.data.beneficiaries).to.be.an('array');",
+									"    pm.expect(jsonData.enrollment.data.beneficiaries.length).to.eql(2);",
+									"});",
+									"",
+									"pm.test('insuredSameAsSubscriber flag is true', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.data.personalInfo.insuredSameAsSubscriber).to.be.true;",
+									"});",
+									"",
+									"pm.test('insured_id is null when subscriber same as insured', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.insured_id).to.be.null;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK123456789\",\n      \"firstName\": \"Ahmed\",\n      \"lastName\": \"Bennani\",\n      \"email\": \"ahmed.bennani@email.ma\",\n      \"phone\": \"+212612345678\",\n      \"birthDate\": \"1985-03-15\",\n      \"birthPlace\": \"Casablanca\",\n      \"passportNumber\": \"PA123456\",\n      \"residencePermit\": \"\",\n      \"address\": \"123 Boulevard Mohammed V\",\n      \"city\": \"Casablanca\",\n      \"country\": \"Morocco\",\n      \"nationality\": \"Moroccan\",\n      \"occupation\": \"Ingénieur\",\n      \"maritalStatus\": \"Married\",\n      \"widowed\": false,\n      \"numberOfChildren\": 2,\n      \"usCitizen\": \"Non\",\n      \"tin\": null\n    },\n    \"insuredSameAsSubscriber\": true\n  },\n  \"contribution\": {\n    \"amount\": 500,\n    \"amountText\": \"Cinq cents Dirhams\",\n    \"originOfFunds\": {\n      \"source\": \"salary\",\n      \"verified\": true,\n      \"employerName\": \"OCP Group\",\n      \"monthlyIncome\": \"15000\"\n    },\n    \"paymentMode\": {\n      \"type\": \"bank_transfer\",\n      \"bankName\": \"BMCE Bank\",\n      \"accountNumber\": \"***1234\",\n      \"iban\": \"MA64011516000001234567890\",\n      \"bic\": \"BMCEMAMC\"\n    },\n    \"frequency\": \"monthly\"\n  },\n  \"beneficiaries\": [\n    {\n      \"firstName\": \"Fatima\",\n      \"lastName\": \"Bennani\",\n      \"relationship\": \"spouse\",\n      \"percentage\": 50,\n      \"birthDate\": \"1987-06-20\",\n      \"cin\": \"BK111111111\",\n      \"address\": \"Same as subscriber\",\n      \"displayOrder\": 1\n    },\n    {\n      \"firstName\": \"Youssef\",\n      \"lastName\": \"Bennani\",\n      \"relationship\": \"child\",\n      \"percentage\": 50,\n      \"birthDate\": \"2010-02-10\",\n      \"cin\": \"BK222222222\",\n      \"address\": \"Same as subscriber\",\n      \"displayOrder\": 2\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
+						},
+						"description": "Update enrollment with complete subscriber data (insuredSameAsSubscriber = true). Tests that subscriber data is properly saved to customers table and contribution/beneficiaries to JSONB."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Enrollment - Separate Insured",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Enrollment updated successfully', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Subscriber and Insured are different records', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.subscriber).to.exist;",
+									"    pm.expect(jsonData.enrollment.insured).to.exist;",
+									"    pm.expect(jsonData.enrollment.subscriber.cin).to.eql('BK987654321');",
+									"    pm.expect(jsonData.enrollment.insured.cin).to.eql('BK555555555');",
+									"});",
+									"",
+									"pm.test('Both subscriber_id and insured_id are populated', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.subscriber_id).to.not.be.null;",
+									"    pm.expect(jsonData.enrollment.insured_id).to.not.be.null;",
+									"    pm.expect(jsonData.enrollment.subscriber_id).to.not.eql(jsonData.enrollment.insured_id);",
+									"});",
+									"",
+									"pm.test('insuredSameAsSubscriber flag is false', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.data.personalInfo.insuredSameAsSubscriber).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK987654321\",\n      \"firstName\": \"Hassan\",\n      \"lastName\": \"El Alaoui\",\n      \"email\": \"hassan@email.ma\",\n      \"phone\": \"+212698765432\",\n      \"birthDate\": \"1980-08-25\",\n      \"birthPlace\": \"Rabat\",\n      \"address\": \"456 Avenue des FAR\",\n      \"city\": \"Rabat\",\n      \"country\": \"Morocco\",\n      \"nationality\": \"Moroccan\",\n      \"occupation\": \"Médecin\",\n      \"maritalStatus\": \"Married\",\n      \"widowed\": false,\n      \"numberOfChildren\": 1,\n      \"usCitizen\": \"Non\"\n    },\n    \"insured\": {\n      \"idNumber\": \"BK555555555\",\n      \"firstName\": \"Laila\",\n      \"lastName\": \"El Alaoui\",\n      \"email\": \"laila@email.ma\",\n      \"phone\": \"+212687654321\",\n      \"birthDate\": \"1982-12-10\",\n      \"birthPlace\": \"Fes\",\n      \"address\": \"456 Avenue des FAR\",\n      \"city\": \"Rabat\",\n      \"country\": \"Morocco\",\n      \"nationality\": \"Moroccan\",\n      \"occupation\": \"Professeur\",\n      \"maritalStatus\": \"Married\",\n      \"widowed\": false,\n      \"numberOfChildren\": 1,\n      \"usCitizen\": \"Non\"\n    },\n    \"insuredSameAsSubscriber\": false\n  },\n  \"contribution\": {\n    \"amount\": 750,\n    \"amountText\": \"Sept cent cinquante Dirhams\",\n    \"originOfFunds\": {\n      \"source\": \"salary\",\n      \"verified\": true\n    },\n    \"paymentMode\": {\n      \"type\": \"bank_transfer\",\n      \"bankName\": \"Attijariwafa Bank\",\n      \"iban\": \"MA64022222000009876543210\"\n    }\n  },\n  \"beneficiaries\": [\n    {\n      \"firstName\": \"Sara\",\n      \"lastName\": \"El Alaoui\",\n      \"relationship\": \"child\",\n      \"percentage\": 100,\n      \"birthDate\": \"2015-04-15\",\n      \"cin\": \"BK333333333\",\n      \"displayOrder\": 1\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
+						},
+						"description": "Update enrollment with separate subscriber and insured (insuredSameAsSubscriber = false). Verifies both customer records are created and linked properly."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Enrollment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Delete successful', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.message).to.include('deleted');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
+						},
+						"description": "Soft delete an enrollment (sets deleted_at timestamp)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Validation & Error Tests",
+			"item": [
+				{
+					"name": "Access Without JWT Token (401)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Remove Authorization header for this request only",
+									"pm.request.headers.remove('Authorization');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401 Unauthorized', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Error message about missing token', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"    pm.expect(jsonData.error).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments"]
+						},
+						"description": "Test authentication failure - attempt to access API without JWT token."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Non-Existent Enrollment (404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 404 Not Found', function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Error message about enrollment not found', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.false;",
+									"    pm.expect(jsonData.error).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/00000000-0000-0000-0000-000000000000",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "00000000-0000-0000-0000-000000000000"]
+						},
+						"description": "Test 404 error handling for non-existent enrollment."
+					},
+					"response": []
+				},
+				{
+					"name": "Update with Invalid Email Format",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Note: Actual validation depends on backend implementation",
+									"pm.test('Request completes', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 422]);",
+									"});",
+									"",
+									"if (pm.response.code !== 200) {",
+									"    pm.test('Error response for invalid email', function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.success).to.be.false;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK123456789\",\n      \"firstName\": \"Test\",\n      \"lastName\": \"User\",\n      \"email\": \"invalid-email-format\",\n      \"phone\": \"+212612345678\",\n      \"birthDate\": \"1990-01-01\"\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
+						},
+						"description": "Test validation for invalid email format."
+					},
+					"response": []
+				},
+				{
+					"name": "Update with Invalid Date Format",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Request completes', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 422]);",
+									"});",
+									"",
+									"if (pm.response.code !== 200) {",
+									"    pm.test('Error response for invalid date', function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.success).to.be.false;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK123456789\",\n      \"firstName\": \"Test\",\n      \"lastName\": \"User\",\n      \"email\": \"test@email.ma\",\n      \"birthDate\": \"32/13/9999\"\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
+						},
+						"description": "Test validation for invalid date format."
+					},
+					"response": []
+				},
+				{
+					"name": "Update with Missing Required CIN",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Request completes', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 422]);",
+									"});",
+									"",
+									"if (pm.response.code !== 200) {",
+									"    pm.test('Error response for missing CIN', function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData.success).to.be.false;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"firstName\": \"Test\",\n      \"lastName\": \"User\",\n      \"email\": \"test@email.ma\",\n      \"birthDate\": \"1990-01-01\"\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
+						},
+						"description": "Test validation for missing required CIN/idNumber field."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Subscriber vs Insured Scenarios",
+			"item": [
+				{
+					"name": "Scenario 1: Create Enrollment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('scenario_enrollment_id', jsonData.enrollment.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments"]
+						},
+						"description": "Step 1: Create new enrollment for scenario testing."
+					},
+					"response": []
+				},
+				{
+					"name": "Scenario 2: Update with Subscriber = Insured",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Subscriber saved correctly', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.subscriber.first_name).to.eql('Mohamed');",
+									"});",
+									"",
+									"pm.test('insured_id is NULL', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.insured_id).to.be.null;",
+									"});",
+									"",
+									"pm.test('insured object is NULL', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.insured).to.be.null;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK777777777\",\n      \"firstName\": \"Mohamed\",\n      \"lastName\": \"Tazi\",\n      \"email\": \"mohamed.tazi@email.ma\",\n      \"phone\": \"+212611111111\",\n      \"birthDate\": \"1975-11-20\",\n      \"birthPlace\": \"Marrakech\",\n      \"city\": \"Marrakech\",\n      \"nationality\": \"Moroccan\",\n      \"usCitizen\": \"Non\"\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{scenario_enrollment_id}}"]
+						},
+						"description": "Step 2: Update with insuredSameAsSubscriber = true. Verify only subscriber_id is populated."
+					},
+					"response": []
+				},
+				{
+					"name": "Scenario 3: Verify Subscriber Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Subscriber data persisted', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.subscriber).to.exist;",
+									"    pm.expect(jsonData.enrollment.subscriber.cin).to.eql('BK777777777');",
+									"    pm.expect(jsonData.enrollment.subscriber.first_name).to.eql('Mohamed');",
+									"});",
+									"",
+									"pm.test('No insured record', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.insured).to.be.null;",
+									"    pm.expect(jsonData.enrollment.insured_id).to.be.null;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{scenario_enrollment_id}}"]
+						},
+						"description": "Step 3: Retrieve and verify subscriber-only enrollment."
+					},
+					"response": []
+				},
+				{
+					"name": "Scenario 4: Update to Separate Insured",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Both subscriber and insured exist', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.subscriber).to.exist;",
+									"    pm.expect(jsonData.enrollment.insured).to.exist;",
+									"});",
+									"",
+									"pm.test('Different CINs for subscriber and insured', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.subscriber.cin).to.eql('BK777777777');",
+									"    pm.expect(jsonData.enrollment.insured.cin).to.eql('BK888888888');",
+									"});",
+									"",
+									"pm.test('Both IDs populated', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.subscriber_id).to.not.be.null;",
+									"    pm.expect(jsonData.enrollment.insured_id).to.not.be.null;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK777777777\",\n      \"firstName\": \"Mohamed\",\n      \"lastName\": \"Tazi\",\n      \"email\": \"mohamed.tazi@email.ma\",\n      \"phone\": \"+212611111111\",\n      \"birthDate\": \"1975-11-20\",\n      \"city\": \"Marrakech\"\n    },\n    \"insured\": {\n      \"idNumber\": \"BK888888888\",\n      \"firstName\": \"Khadija\",\n      \"lastName\": \"Tazi\",\n      \"email\": \"khadija.tazi@email.ma\",\n      \"phone\": \"+212622222222\",\n      \"birthDate\": \"1978-03-14\",\n      \"birthPlace\": \"Agadir\",\n      \"city\": \"Marrakech\"\n    },\n    \"insuredSameAsSubscriber\": false\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{scenario_enrollment_id}}"]
+						},
+						"description": "Step 4: Update same enrollment to have separate insured. Verify both subscriber_id and insured_id are populated."
+					},
+					"response": []
+				},
+				{
+					"name": "Scenario 5: Verify Both Records",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Subscriber data intact', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.subscriber.first_name).to.eql('Mohamed');",
+									"    pm.expect(jsonData.enrollment.subscriber.cin).to.eql('BK777777777');",
+									"});",
+									"",
+									"pm.test('Insured data saved separately', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.insured.first_name).to.eql('Khadija');",
+									"    pm.expect(jsonData.enrollment.insured.cin).to.eql('BK888888888');",
+									"});",
+									"",
+									"pm.test('insuredSameAsSubscriber flag is false', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.data.personalInfo.insuredSameAsSubscriber).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "{{scenario_enrollment_id}}"]
+						},
+						"description": "Step 5: Final verification that both subscriber and insured records are properly saved and linked."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

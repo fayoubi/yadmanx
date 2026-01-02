@@ -73,8 +73,8 @@ class AgentService {
 
     // Insert new agent
     const insertQuery = `
-      INSERT INTO agents (phone_number, country_code, first_name, last_name, email, license_number, status)
-      VALUES ($1, $2, $3, $4, $5, $6, 'active')
+      INSERT INTO agents (phone_number, country_code, first_name, last_name, email, license_number, agency_name, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
       RETURNING *
     `;
 
@@ -85,6 +85,7 @@ class AgentService {
       last_name,
       email,
       license_number.trim(),
+      agency_name || null,
     ]);
 
     return result.rows[0];
