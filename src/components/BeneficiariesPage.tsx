@@ -101,10 +101,10 @@ const BeneficiariesPage: React.FC = () => {
           first_name: b.first_name,
           cin: b.cin || '',
           date_of_birth: b.date_of_birth,
-          place_of_birth: b.place_of_birth,
-          address: b.address,
+          place_of_birth: b.place_of_birth || '',
+          address: b.address || '',
           percentage: b.percentage,
-          order_index: index + 1,
+          order_index: b.order_index || index + 1,
         }));
 
         setFormState(prev => ({

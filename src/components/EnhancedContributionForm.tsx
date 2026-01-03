@@ -81,6 +81,92 @@ const EnhancedContributionForm: React.FC = () => {
   const [ribValidation, setRibValidation] = useState<RIBValidationResponse | null>(null);
   const [isValidatingRIB, setIsValidatingRIB] = useState(false);
 
+  // Load existing enrollment data if editing
+  useEffect(() => {
+    const loadEnrollmentData = async () => {
+      if (!enrollmentId) {
+        console.log('No enrollment ID - new contribution mode');
+        return;
+      }
+
+      try {
+        console.log('Loading contribution data for enrollment:', enrollmentId);
+        const response = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}`, {
+          headers: {
+            'x-agent-id': '11111111-1111-1111-1111-111111111111'
+          }
+        });
+
+        if (!response.ok) {
+          console.error('Failed to fetch enrollment data, status:', response.status);
+          return;
+        }
+
+        const data = await response.json();
+        console.log('Enrollment data received:', data);
+
+        const enrollment = data.enrollment;
+        if (!enrollment) {
+          console.log('No enrollment found in response');
+          return;
+        }
+
+        // Load contribution data if it exists (data is stored in enrollment.data.contribution)
+        const contrib = enrollment.data?.contribution;
+        if (contrib) {
+          console.log('Loading existing contribution:', contrib);
+
+          // Map contribution data to form state
+          // Set contribution amount and frequency
+          if (contrib.amount !== undefined && contrib.frequency) {
+            setFormData({
+              amount: contrib.amount,
+              frequency: contrib.frequency
+            });
+            setHasValidated(true);
+          }
+
+          // Set payment configuration with all mapped fields
+          const newPaymentConfig: PaymentConfiguration = {
+            initialPayment: {
+              amount: contrib.initialPayment?.amount || contrib.amount || 100,
+              amountInText: contrib.initialPayment?.amountInText || ''
+            },
+            fundOrigins: {
+              selected: contrib.fundOrigins?.selected || [],
+              otherDescription: contrib.fundOrigins?.otherDescription || undefined
+            },
+            paymentMode: {
+              mode: contrib.paymentMode?.mode || 'check',
+              bankName: contrib.paymentMode?.bankName || '',
+              agencyName: contrib.paymentMode?.agencyName || '',
+              checkNumber: contrib.paymentMode?.checkNumber || '',
+              accountNumber: contrib.paymentMode?.accountNumber || ''
+            }
+          };
+
+          setPaymentConfig(newPaymentConfig);
+
+          // If we have contribution data, show section 2
+          if (contrib.fundOrigins?.selected?.length || contrib.paymentMode?.bankName || contrib.paymentMode?.mode) {
+            setShowSection2(true);
+          }
+
+          console.log('Contribution data loaded successfully', {
+            formData: { amount: contrib.amount, frequency: contrib.frequency },
+            paymentConfig: newPaymentConfig
+          });
+        } else {
+          console.log('No contribution data found in enrollment.data.contribution');
+        }
+      } catch (error) {
+        console.error('Error loading enrollment data:', error);
+      }
+    };
+
+    loadEnrollmentData();
+  }, [enrollmentId]);
+
   // Update amount in text whenever initial payment amount changes
   useEffect(() => {
     if (paymentConfig.initialPayment.amount > 0) {

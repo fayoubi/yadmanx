@@ -27,17 +27,50 @@ export class BeneficiariesService {
    */
   async getBeneficiariesForEnrollment(enrollmentId: string): Promise<Beneficiary[]> {
     try {
-      // TODO: Replace with actual API call when backend is implemented
-      // const response = await fetch(`${this.baseUrl}/api/v1/enrollments/${enrollmentId}/beneficiaries`);
+      // Fetch enrollment data from API
+      const enrollmentUrl = process.env.REACT_APP_ENROLLMENT_SERVICE_URL || 'http://localhost:3002';
+      const response = await fetch(`${enrollmentUrl}/api/v1/enrollments/${enrollmentId}`, {
+        headers: {
+          'x-agent-id': '11111111-1111-1111-1111-111111111111'
+        }
+      });
 
-      // For now, return from localStorage or empty array
-      const stored = localStorage.getItem(`beneficiaries_${enrollmentId}`);
-      if (stored) {
-        const data = JSON.parse(stored);
-        return data.beneficiaries || [];
+      if (!response.ok) {
+        console.error('Failed to fetch enrollment data, status:', response.status);
+        return [];
       }
 
-      return [];
+      const data = await response.json();
+      const enrollment = data.enrollment;
+
+      if (!enrollment) {
+        console.log('No enrollment found in response');
+        return [];
+      }
+
+      // Extract beneficiaries from enrollment.data.beneficiaries (JSONB structure)
+      const beneficiariesData = enrollment.data?.beneficiaries || [];
+
+      if (beneficiariesData.length === 0) {
+        return [];
+      }
+
+      // Map API response (camelCase) to Beneficiary interface (snake_case)
+      return beneficiariesData.map((b: any, index: number) => ({
+        id: b.id,
+        enrollment_id: enrollmentId,
+        last_name: b.lastName || b.last_name || '',
+        first_name: b.firstName || b.first_name || '',
+        cin: b.cin || '',
+        date_of_birth: b.birthDate || b.date_of_birth || '',
+        place_of_birth: b.placeOfBirth || b.place_of_birth || b.birthPlace || '',
+        address: b.address || '',
+        percentage: b.percentage || 0,
+        order_index: b.displayOrder || b.order_index || index + 1,
+        created_at: b.created_at,
+        updated_at: b.updated_at,
+        deleted_at: b.deleted_at
+      }));
     } catch (error) {
       console.error('Error fetching beneficiaries:', error);
       return [];
