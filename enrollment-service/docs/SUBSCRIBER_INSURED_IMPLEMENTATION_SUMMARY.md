@@ -40,7 +40,7 @@ All components of the subscriber/insured separation have been successfully imple
 
 **File:** `enrollment-service/src/controllers/enrollment.controller.v2.js`
 
-- ✅ `getEnrollmentStep()` - Populates `personal_info` step from customer records
+- ✅ `getEnrollment()` - Returns enrollment with subscriber and insured customer records
   - Maps subscriber data from `enrollment.subscriber` object
   - Maps insured data from `enrollment.insured` object (if exists)
   - Returns `insuredSameAsSubscriber` flag from JSONB
@@ -91,11 +91,6 @@ All API endpoints tested and verified:
 3. ✅ **GET /api/v1/enrollments/:id** - Returns enrollment with:
    - `subscriber` object (from customer record)
    - `insured` object (from customer record, or `null` if self-insured)
-   - `customer` object (backward compatibility, same as subscriber)
-4. ✅ **GET /api/v1/enrollments/:id/steps/personal_info** - Returns step data:
-   - Subscriber data from customer record
-   - Insured data from customer record (if exists)
-   - `insuredSameAsSubscriber` flag from JSONB
 
 ### Edge Cases Tested ✅
 
@@ -119,8 +114,7 @@ All API endpoints tested and verified:
     }
   }
   ```
-- ✅ Loads data from step endpoint (`/steps/customer_info` or `/steps/personal_info`)
-- ✅ Falls back to enrollment metadata for backward compatibility
+- ✅ Loads data from enrollment endpoint (`GET /enrollments/{id}`) with subscriber and insured customer records
 - ✅ Auto-save functionality uses correct structure
 
 ## Business Rules Implemented
@@ -169,8 +163,7 @@ Two verification scripts have been created:
 - ✅ Separate-insured enrollments have both `subscriber_id` and `insured_id` populated
 - ✅ JSONB no longer contains `personalInfo.subscriber` or `personalInfo.insured` for new/updated enrollments
 - ✅ JSONB still contains `personalInfo.insuredSameAsSubscriber`, `contribution`, and `beneficiaries`
-- ✅ GET `/api/v1/enrollments/:id` returns `subscriber`, `insured`, and `customer` (backward compatibility) objects
-- ✅ GET `/api/v1/enrollments/:id/steps/personal_info` populates from customer records, not JSONB
+- ✅ GET `/api/v1/enrollments/:id` returns `subscriber` and `insured` objects from customer records
 - ✅ Frontend enrollment form works without changes
 - ✅ Dashboard enrollment list displays subscriber information correctly
 

@@ -14,6 +14,9 @@ router.use(authenticateAgent);
  * - Data always editable
  */
 
+// Initialize enrollment with customer data (new flow)
+router.post('/enrollments/initialize', enrollmentController.initialize);
+
 // Create new enrollment
 router.post('/enrollments', enrollmentController.createEnrollment);
 
@@ -22,9 +25,6 @@ router.get('/enrollments', enrollmentController.listEnrollments);
 
 // Get specific enrollment
 router.get('/enrollments/:id', enrollmentController.getEnrollment);
-
-// Compatibility route for step-based frontend (returns enrollment data formatted as step data)
-router.get('/enrollments/:id/steps/:stepName', enrollmentController.getEnrollmentStep);
 
 // Update enrollment (any data, always allowed)
 router.put('/enrollments/:id', enrollmentController.updateEnrollment);

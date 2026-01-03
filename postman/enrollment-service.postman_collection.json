@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "enrollment-service-api-v2",
 		"name": "YadmanX - Enrollment Service API v2",
-		"description": "Complete API collection for testing enrollment service endpoints with JWT authentication. Covers CRUD operations, validation tests, and subscriber/insured scenarios.",
+		"description": "Complete API collection for testing YadmanX services including Agent authentication and Enrollment management. Generate JWT tokens and test all enrollment endpoints in one collection.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"auth": {
@@ -22,8 +22,8 @@
 				"type": "text/javascript",
 				"exec": [
 					"// Collection-level pre-request script",
-					"// Automatically adds JWT token to all requests",
-					"if (pm.environment.get('jwt_token')) {",
+					"// Automatically adds JWT token to enrollment service requests",
+					"if (pm.environment.get('jwt_token') && pm.request.url.toString().includes('3002')) {",
 					"    pm.request.headers.upsert({",
 					"        key: 'Authorization',",
 					"        value: 'Bearer ' + pm.environment.get('jwt_token')",
@@ -56,16 +56,158 @@
 	],
 	"item": [
 		{
-			"name": "1. Setup & Health",
+			"name": "0. Agent Service - Authentication",
 			"item": [
 				{
-					"name": "Health Check",
+					"name": "Agent Health Check",
 					"request": {
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/health",
-							"host": ["{{base_url}}"],
+							"raw": "{{agent_base_url}}/api/{{api_version}}/health",
+							"host": ["{{agent_base_url}}"],
+							"path": ["api", "{{api_version}}", "health"]
+						},
+						"description": "Check if the agent service is running and healthy."
+					},
+					"response": []
+				},
+				{
+					"name": "Request OTP",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success message', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.message).to.exist;",
+									"});",
+									"",
+									"console.log('✅ OTP sent! Check your database or logs for the code.');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone_number\": \"{{agent_phone_number}}\"\n}"
+						},
+						"url": {
+							"raw": "{{agent_base_url}}/api/{{api_version}}/auth/request-otp",
+							"host": ["{{agent_base_url}}"],
+							"path": ["api", "{{api_version}}", "auth", "request-otp"]
+						},
+						"description": "Request OTP code for agent authentication. The OTP will be sent to the phone number or logged to the console.\n\nTo find the OTP code:\n\nOption 1 - Database:\n```sql\nSELECT code, expires_at FROM otp_codes \nWHERE phone_number = '+212612345678' \nAND expires_at > NOW() \nORDER BY created_at DESC LIMIT 1;\n```\n\nOption 2 - Check agent service logs for the OTP output."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify OTP & Get JWT Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains JWT token', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.token).to.exist;",
+									"    pm.expect(jsonData.token).to.be.a('string');",
+									"    pm.expect(jsonData.token.length).to.be.above(100);",
+									"});",
+									"",
+									"pm.test('Token has correct expiration', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.expiresIn).to.eql('24h');",
+									"});",
+									"",
+									"pm.test('Agent details are included', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.agent).to.exist;",
+									"    pm.expect(jsonData.agent.id).to.exist;",
+									"    pm.expect(jsonData.agent.phone_number).to.exist;",
+									"});",
+									"",
+									"// Auto-save JWT token to environment",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('jwt_token', jsonData.token);",
+									"    pm.environment.set('agent_id', jsonData.agent.id);",
+									"    console.log('✅ JWT token saved to environment!');",
+									"    console.log('Agent ID: ' + jsonData.agent.id);",
+									"    console.log('Token expires in: 24 hours');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone_number\": \"{{agent_phone_number}}\",\n  \"code\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{agent_base_url}}/api/{{api_version}}/auth/verify-otp",
+							"host": ["{{agent_base_url}}"],
+							"path": ["api", "{{api_version}}", "auth", "verify-otp"]
+						},
+						"description": "Verify the OTP code and receive a JWT token.\n\n**IMPORTANT**: Replace `123456` in the request body with the actual OTP code you received.\n\n**Auto-saves:**\n- `jwt_token` - Automatically saved to environment for subsequent requests\n- `agent_id` - Saved from response\n\nToken expires in 24 hours."
+					},
+					"response": []
+				}
+			],
+			"description": "Agent Service authentication endpoints for generating JWT tokens. Start here to get your authentication token before testing enrollment endpoints."
+		},
+		{
+			"name": "1. Setup & Health",
+			"item": [
+				{
+					"name": "Enrollment Health Check",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{enrollment_base_url}}/health",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["health"]
 						},
 						"description": "Check if the enrollment service is running and healthy."
@@ -131,11 +273,80 @@
 							"raw": "{}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments"]
 						},
 						"description": "Create a new enrollment record. Returns a new enrollment with a UUID and empty data object."
+					},
+					"response": []
+				},
+				{
+					"name": "Initialize Enrollment with Customer Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has success flag', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"});",
+									"",
+									"pm.test('Enrollment and subscriber created', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment).to.exist;",
+									"    pm.expect(jsonData.subscriber).to.exist;",
+									"    pm.expect(jsonData.enrollment.subscriber_id).to.eql(jsonData.subscriber.id);",
+									"});",
+									"",
+									"pm.test('Subscriber has required fields', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.subscriber.idNumber).to.exist;",
+									"    pm.expect(jsonData.subscriber.firstName).to.exist;",
+									"    pm.expect(jsonData.subscriber.lastName).to.exist;",
+									"});",
+									"",
+									"pm.test('Enrollment has personalInfo flag', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.enrollment.data).to.have.property('personalInfo');",
+									"    pm.expect(jsonData.enrollment.data.personalInfo.insuredSameAsSubscriber).to.be.a('boolean');",
+									"});",
+									"",
+									"// Save enrollment ID for subsequent requests",
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('enrollment_id', jsonData.enrollment.id);",
+									"    console.log('✅ Enrollment initialized with ID: ' + jsonData.enrollment.id);",
+									"    console.log('✅ Subscriber created with ID: ' + jsonData.subscriber.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"salutation\": \"Monsieur\",\n      \"firstName\": \"Ahmed\",\n      \"lastName\": \"Benali\",\n      \"idNumber\": \"BK123456789\",\n      \"nationality\": \"Maroc\",\n      \"birthDate\": \"1985-03-15\",\n      \"birthPlace\": \"Casablanca\",\n      \"address\": \"123 Rue Mohammed V\",\n      \"city\": \"Casablanca\",\n      \"country\": \"Maroc\",\n      \"phone\": \"+212600000000\",\n      \"occupation\": \"Ingénieur\",\n      \"maritalStatus\": \"Marié(e)\",\n      \"numberOfChildren\": \"2\",\n      \"usCitizen\": \"Non\"\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/initialize",
+							"host": ["{{enrollment_base_url}}"],
+							"path": ["api", "{{api_version}}", "enrollments", "initialize"]
+						},
+						"description": "Initialize enrollment with customer data in a single transaction. Creates customer record(s) and enrollment. This is the new flow for creating enrollments with customer data."
 					},
 					"response": []
 				},
@@ -181,8 +392,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments?limit=50&offset=0",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments?limit=50&offset=0",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments"],
 							"query": [
 								{
@@ -235,45 +446,11 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
 						},
 						"description": "Retrieve a single enrollment by ID, including subscriber, insured, and all enrollment data."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Enrollment Step - Personal Info",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('Status code is 200 OK', function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('Response contains step data', function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.data).to.exist;",
-									"    pm.expect(jsonData.data.step_name).to.eql('personal_info');",
-									"    pm.expect(jsonData.data.step_data).to.exist;",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}/steps/personal_info",
-							"host": ["{{base_url}}"],
-							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}", "steps", "personal_info"]
-						},
-						"description": "Retrieve enrollment data for a specific step (personal_info, contribution, beneficiaries)."
 					},
 					"response": []
 				},
@@ -340,8 +517,8 @@
 							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK123456789\",\n      \"firstName\": \"Ahmed\",\n      \"lastName\": \"Bennani\",\n      \"email\": \"ahmed.bennani@email.ma\",\n      \"phone\": \"+212612345678\",\n      \"birthDate\": \"1985-03-15\",\n      \"birthPlace\": \"Casablanca\",\n      \"passportNumber\": \"PA123456\",\n      \"residencePermit\": \"\",\n      \"address\": \"123 Boulevard Mohammed V\",\n      \"city\": \"Casablanca\",\n      \"country\": \"Morocco\",\n      \"nationality\": \"Moroccan\",\n      \"occupation\": \"Ingénieur\",\n      \"maritalStatus\": \"Married\",\n      \"widowed\": false,\n      \"numberOfChildren\": 2,\n      \"usCitizen\": \"Non\",\n      \"tin\": null\n    },\n    \"insuredSameAsSubscriber\": true\n  },\n  \"contribution\": {\n    \"amount\": 500,\n    \"amountText\": \"Cinq cents Dirhams\",\n    \"originOfFunds\": {\n      \"source\": \"salary\",\n      \"verified\": true,\n      \"employerName\": \"OCP Group\",\n      \"monthlyIncome\": \"15000\"\n    },\n    \"paymentMode\": {\n      \"type\": \"bank_transfer\",\n      \"bankName\": \"BMCE Bank\",\n      \"accountNumber\": \"***1234\",\n      \"iban\": \"MA64011516000001234567890\",\n      \"bic\": \"BMCEMAMC\"\n    },\n    \"frequency\": \"monthly\"\n  },\n  \"beneficiaries\": [\n    {\n      \"firstName\": \"Fatima\",\n      \"lastName\": \"Bennani\",\n      \"relationship\": \"spouse\",\n      \"percentage\": 50,\n      \"birthDate\": \"1987-06-20\",\n      \"cin\": \"BK111111111\",\n      \"address\": \"Same as subscriber\",\n      \"displayOrder\": 1\n    },\n    {\n      \"firstName\": \"Youssef\",\n      \"lastName\": \"Bennani\",\n      \"relationship\": \"child\",\n      \"percentage\": 50,\n      \"birthDate\": \"2010-02-10\",\n      \"cin\": \"BK222222222\",\n      \"address\": \"Same as subscriber\",\n      \"displayOrder\": 2\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
 						},
 						"description": "Update enrollment with complete subscriber data (insuredSameAsSubscriber = true). Tests that subscriber data is properly saved to customers table and contribution/beneficiaries to JSONB."
@@ -401,8 +578,8 @@
 							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK987654321\",\n      \"firstName\": \"Hassan\",\n      \"lastName\": \"El Alaoui\",\n      \"email\": \"hassan@email.ma\",\n      \"phone\": \"+212698765432\",\n      \"birthDate\": \"1980-08-25\",\n      \"birthPlace\": \"Rabat\",\n      \"address\": \"456 Avenue des FAR\",\n      \"city\": \"Rabat\",\n      \"country\": \"Morocco\",\n      \"nationality\": \"Moroccan\",\n      \"occupation\": \"Médecin\",\n      \"maritalStatus\": \"Married\",\n      \"widowed\": false,\n      \"numberOfChildren\": 1,\n      \"usCitizen\": \"Non\"\n    },\n    \"insured\": {\n      \"idNumber\": \"BK555555555\",\n      \"firstName\": \"Laila\",\n      \"lastName\": \"El Alaoui\",\n      \"email\": \"laila@email.ma\",\n      \"phone\": \"+212687654321\",\n      \"birthDate\": \"1982-12-10\",\n      \"birthPlace\": \"Fes\",\n      \"address\": \"456 Avenue des FAR\",\n      \"city\": \"Rabat\",\n      \"country\": \"Morocco\",\n      \"nationality\": \"Moroccan\",\n      \"occupation\": \"Professeur\",\n      \"maritalStatus\": \"Married\",\n      \"widowed\": false,\n      \"numberOfChildren\": 1,\n      \"usCitizen\": \"Non\"\n    },\n    \"insuredSameAsSubscriber\": false\n  },\n  \"contribution\": {\n    \"amount\": 750,\n    \"amountText\": \"Sept cent cinquante Dirhams\",\n    \"originOfFunds\": {\n      \"source\": \"salary\",\n      \"verified\": true\n    },\n    \"paymentMode\": {\n      \"type\": \"bank_transfer\",\n      \"bankName\": \"Attijariwafa Bank\",\n      \"iban\": \"MA64022222000009876543210\"\n    }\n  },\n  \"beneficiaries\": [\n    {\n      \"firstName\": \"Sara\",\n      \"lastName\": \"El Alaoui\",\n      \"relationship\": \"child\",\n      \"percentage\": 100,\n      \"birthDate\": \"2015-04-15\",\n      \"cin\": \"BK333333333\",\n      \"displayOrder\": 1\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
 						},
 						"description": "Update enrollment with separate subscriber and insured (insuredSameAsSubscriber = false). Verifies both customer records are created and linked properly."
@@ -434,8 +611,8 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
 						},
 						"description": "Soft delete an enrollment (sets deleted_at timestamp)."
@@ -485,8 +662,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments"]
 						},
 						"description": "Test authentication failure - attempt to access API without JWT token."
@@ -518,8 +695,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/00000000-0000-0000-0000-000000000000",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/00000000-0000-0000-0000-000000000000",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "00000000-0000-0000-0000-000000000000"]
 						},
 						"description": "Test 404 error handling for non-existent enrollment."
@@ -562,8 +739,8 @@
 							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK123456789\",\n      \"firstName\": \"Test\",\n      \"lastName\": \"User\",\n      \"email\": \"invalid-email-format\",\n      \"phone\": \"+212612345678\",\n      \"birthDate\": \"1990-01-01\"\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
 						},
 						"description": "Test validation for invalid email format."
@@ -605,8 +782,8 @@
 							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK123456789\",\n      \"firstName\": \"Test\",\n      \"lastName\": \"User\",\n      \"email\": \"test@email.ma\",\n      \"birthDate\": \"32/13/9999\"\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
 						},
 						"description": "Test validation for invalid date format."
@@ -648,8 +825,8 @@
 							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"firstName\": \"Test\",\n      \"lastName\": \"User\",\n      \"email\": \"test@email.ma\",\n      \"birthDate\": \"1990-01-01\"\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{enrollment_id}}"]
 						},
 						"description": "Test validation for missing required CIN/idNumber field."
@@ -694,8 +871,8 @@
 							"raw": "{}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments"]
 						},
 						"description": "Step 1: Create new enrollment for scenario testing."
@@ -741,8 +918,8 @@
 							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK777777777\",\n      \"firstName\": \"Mohamed\",\n      \"lastName\": \"Tazi\",\n      \"email\": \"mohamed.tazi@email.ma\",\n      \"phone\": \"+212611111111\",\n      \"birthDate\": \"1975-11-20\",\n      \"birthPlace\": \"Marrakech\",\n      \"city\": \"Marrakech\",\n      \"nationality\": \"Moroccan\",\n      \"usCitizen\": \"Non\"\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{scenario_enrollment_id}}"]
 						},
 						"description": "Step 2: Update with insuredSameAsSubscriber = true. Verify only subscriber_id is populated."
@@ -777,8 +954,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{scenario_enrollment_id}}"]
 						},
 						"description": "Step 3: Retrieve and verify subscriber-only enrollment."
@@ -827,8 +1004,8 @@
 							"raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"idNumber\": \"BK777777777\",\n      \"firstName\": \"Mohamed\",\n      \"lastName\": \"Tazi\",\n      \"email\": \"mohamed.tazi@email.ma\",\n      \"phone\": \"+212611111111\",\n      \"birthDate\": \"1975-11-20\",\n      \"city\": \"Marrakech\"\n    },\n    \"insured\": {\n      \"idNumber\": \"BK888888888\",\n      \"firstName\": \"Khadija\",\n      \"lastName\": \"Tazi\",\n      \"email\": \"khadija.tazi@email.ma\",\n      \"phone\": \"+212622222222\",\n      \"birthDate\": \"1978-03-14\",\n      \"birthPlace\": \"Agadir\",\n      \"city\": \"Marrakech\"\n    },\n    \"insuredSameAsSubscriber\": false\n  }\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{scenario_enrollment_id}}"]
 						},
 						"description": "Step 4: Update same enrollment to have separate insured. Verify both subscriber_id and insured_id are populated."
@@ -867,8 +1044,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
-							"host": ["{{base_url}}"],
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/enrollments/{{scenario_enrollment_id}}",
+							"host": ["{{enrollment_base_url}}"],
 							"path": ["api", "{{api_version}}", "enrollments", "{{scenario_enrollment_id}}"]
 						},
 						"description": "Step 5: Final verification that both subscriber and insured records are properly saved and linked."

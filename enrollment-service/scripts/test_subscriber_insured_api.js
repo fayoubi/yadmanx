@@ -118,20 +118,20 @@ async function testAPI() {
   }
   console.log('   Has insuredSameAsSubscriber flag:', !!data.personalInfo?.insuredSameAsSubscriber);
 
-  // Test 5: Get enrollment step (personal_info)
-  console.log('\n5. Getting enrollment step (personal_info)...');
-  const stepResult = await makeRequest('GET', `/api/v1/enrollments/${enrollmentId}/steps/personal_info`);
-  if (!stepResult.ok) {
-    console.log('   ❌ Get step failed:', stepResult.status, stepResult.data);
+  // Test 5: Get enrollment with customer data
+  console.log('\n5. Getting full enrollment with customer data...');
+  const enrollmentResult = await makeRequest('GET', `/api/v1/enrollments/${enrollmentId}`);
+  if (!enrollmentResult.ok) {
+    console.log('   ❌ Get enrollment failed:', enrollmentResult.status, enrollmentResult.data);
     return;
   }
-  const stepData = stepResult.data.data.step_data;
-  console.log('   ✅ Retrieved step data');
-  console.log('   Has subscriber data:', !!stepData.subscriber);
-  console.log('   Has insured data:', !!stepData.insured);
-  console.log('   insuredSameAsSubscriber:', stepData.insuredSameAsSubscriber);
-  if (stepData.subscriber) {
-    console.log('   Subscriber from step:', `${stepData.subscriber.firstName} ${stepData.subscriber.lastName}`);
+  const enrollment = enrollmentResult.data.enrollment;
+  console.log('   ✅ Retrieved enrollment data');
+  console.log('   Has subscriber data:', !!enrollment.subscriber);
+  console.log('   Has insured data:', !!enrollment.insured);
+  console.log('   insuredSameAsSubscriber:', enrollment.data?.personalInfo?.insuredSameAsSubscriber);
+  if (enrollment.subscriber) {
+    console.log('   Subscriber:', `${enrollment.subscriber.first_name} ${enrollment.subscriber.last_name}`);
   }
 
   // Test 6: Update with separate insured

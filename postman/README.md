@@ -157,7 +157,7 @@ Use any HTTP client to get a token:
 
 ```bash
 # Send OTP request (manual step - check your phone/database for the code)
-curl -X POST http://localhost:3003/api/v1/auth/send-otp \
+curl -X POST http://localhost:3003/api/v1/auth/request-otp \
   -H "Content-Type: application/json" \
   -d '{"phone_number": "+212612345678"}'
 
@@ -227,24 +227,19 @@ Complete workflow for enrollment lifecycle:
    - Uses `{{enrollment_id}}` from previous create
    - Returns: Complete enrollment object
 
-4. **Get Enrollment Step - Personal Info**
-   - Retrieves data for a specific step
-   - Formats data according to step schema
-   - Available steps: `personal_info`, `contribution`, `beneficiaries`
-
-5. **Update Enrollment - Subscriber Only**
+4. **Update Enrollment - Subscriber Only**
    - Complete update with `insuredSameAsSubscriber = true`
    - Tests subscriber data persistence to customers table
    - Tests contribution and beneficiaries storage in JSONB
    - Validates that `insured_id` remains NULL
 
-6. **Update Enrollment - Separate Insured**
+5. **Update Enrollment - Separate Insured**
    - Updates with different subscriber and insured
    - Tests that both customer records are created
    - Validates both `subscriber_id` and `insured_id` are populated
    - Tests the dual-customer architecture
 
-7. **Delete Enrollment**
+6. **Delete Enrollment**
    - Soft deletes enrollment (sets `deleted_at`)
    - Enrollment becomes unavailable for queries
    - Customer records remain intact

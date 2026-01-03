@@ -29,6 +29,91 @@ class EnrollmentServiceV2 {
   }
 
   /**
+   * Initialize enrollment with customer data (new flow)
+   * Creates customer record(s) and enrollment in a single transaction
+   * @param {string} agentId - UUID of the agent creating the enrollment
+   * @param {Object} personalInfo - Personal info object with subscriber and optional insured
+   * @returns {Object} Object containing enrollment, subscriber, and insured (if applicable)
+   */
+  async initialize(agentId, personalInfo) {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Create or update subscriber
+      const { coreFields: subscriberCoreFields, jsonbData: subscriberJsonbData } =
+        customerJsonbService.mapPersonToDb(personalInfo.subscriber);
+
+      const subscriberId = await this._upsertCustomer(
+        subscriberCoreFields,
+        subscriberJsonbData,
+        client
+      );
+
+      // Create or update insured (if different from subscriber)
+      let insuredId = null;
+      const insuredSameAsSubscriber = personalInfo.insuredSameAsSubscriber ?? true;
+
+      if (!insuredSameAsSubscriber && personalInfo.insured) {
+        const { coreFields: insuredCoreFields, jsonbData: insuredJsonbData } =
+          customerJsonbService.mapPersonToDb(personalInfo.insured);
+
+        insuredId = await this._upsertCustomer(
+          insuredCoreFields,
+          insuredJsonbData,
+          client
+        );
+      }
+
+      // Create enrollment record with minimal JSONB data (no customer objects)
+      const enrollmentData = {
+        personalInfo: {
+          insuredSameAsSubscriber
+        }
+      };
+
+      const enrollmentQuery = `
+        INSERT INTO enrollments (agent_id, subscriber_id, insured_id, data)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, agent_id, subscriber_id, insured_id, data, created_at, updated_at
+      `;
+
+      const enrollmentResult = await client.query(enrollmentQuery, [
+        agentId,
+        subscriberId,
+        insuredId,
+        JSON.stringify(enrollmentData)
+      ]);
+
+      // Retrieve customer records to return
+      const subscriberQuery = 'SELECT * FROM customers WHERE id = $1';
+      const subscriberResult = await client.query(subscriberQuery, [subscriberId]);
+
+      let insuredResult = null;
+      if (insuredId) {
+        const insuredQuery = 'SELECT * FROM customers WHERE id = $1';
+        insuredResult = await client.query(insuredQuery, [insuredId]);
+      }
+
+      await client.query('COMMIT');
+
+      return {
+        enrollment: enrollmentResult.rows[0],
+        subscriber: subscriberResult.rows[0] ?
+          customerJsonbService.flattenCustomerRow(subscriberResult.rows[0]) : null,
+        insured: insuredResult?.rows[0] ?
+          customerJsonbService.flattenCustomerRow(insuredResult.rows[0]) : null
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Get enrollment by ID with subscriber and insured customer info
    * @param {string} enrollmentId - UUID of the enrollment
    * @returns {Object|null} The enrollment with subscriber and insured data
@@ -107,18 +192,6 @@ class EnrollmentServiceV2 {
         phone: row.insured_phone,
         address: row.insured_address,
         data: row.insured_data
-      }) : null,
-
-      // Backward compatibility: return subscriber as "customer"
-      customer: row.subscriber_customer_id ? customerJsonbService.flattenCustomerRow({
-        id: row.subscriber_customer_id,
-        cin: row.subscriber_cin,
-        first_name: row.subscriber_first_name,
-        last_name: row.subscriber_last_name,
-        email: row.subscriber_email,
-        phone: row.subscriber_phone,
-        address: row.subscriber_address,
-        data: row.subscriber_data
       }) : null
     };
   }
@@ -129,7 +202,7 @@ class EnrollmentServiceV2 {
    * @param {string} agentId - UUID of the agent
    * @param {number} limit - Max number of results
    * @param {number} offset - Offset for pagination
-   * @returns {Array} Array of enrollments with subscriber details
+   * @returns {Object} Object with enrollments array and pagination info
    */
   async list(agentId, limit = 50, offset = 0) {
     const query = `
@@ -141,16 +214,34 @@ class EnrollmentServiceV2 {
         e.data,
         e.created_at,
         e.updated_at,
-        c.first_name,
-        c.last_name,
-        c.email,
-        c.phone,
-        c.cin,
-        CASE 
-          WHEN c.data IS NOT NULL AND c.data != '{}'::jsonb 
+        -- Subscriber data (always shown)
+        c.cin as subscriber_cin,
+        c.first_name as subscriber_first_name,
+        c.last_name as subscriber_last_name,
+        c.email as subscriber_email,
+        c.phone as subscriber_phone,
+        CASE
+          WHEN c.data IS NOT NULL AND c.data != '{}'::jsonb
           THEN (c.data::jsonb)->'address'->>'city'
           ELSE NULL
-        END as city
+        END as subscriber_city,
+        CASE
+          WHEN c.data IS NOT NULL AND c.data != '{}'::jsonb
+          THEN (c.data::jsonb)->>'dateOfBirth'
+          ELSE NULL
+        END as subscriber_dob,
+        CASE
+          WHEN c.data IS NOT NULL AND c.data != '{}'::jsonb
+          THEN (c.data::jsonb)->>'birthPlace'
+          ELSE NULL
+        END as subscriber_birth_place,
+        -- Status indicator based on data presence
+        CASE
+          WHEN e.data ? 'beneficiaries' THEN 'completed'
+          WHEN e.data ? 'contribution' THEN 'in_progress'
+          WHEN e.subscriber_id IS NOT NULL THEN 'draft'
+          ELSE 'new'
+        END as status
       FROM enrollments e
       LEFT JOIN customers c ON e.subscriber_id = c.id AND c.deleted_at IS NULL
       WHERE e.agent_id = $1 AND e.deleted_at IS NULL
@@ -160,21 +251,38 @@ class EnrollmentServiceV2 {
 
     const result = await pool.query(query, [agentId, limit, offset]);
 
-    return result.rows.map(row => ({
-      id: row.id,
-      agent_id: row.agent_id,
-      subscriber_id: row.subscriber_id,
-      insured_id: row.insured_id,
-      first_name: row.first_name,
-      last_name: row.last_name,
-      email: row.email,
-      phone: row.phone,
-      cin: row.cin,
-      city: row.city,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      data: row.data
-    }));
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) FROM enrollments
+      WHERE agent_id = $1 AND deleted_at IS NULL
+    `;
+    const countResult = await pool.query(countQuery, [agentId]);
+
+    return {
+      enrollments: result.rows.map(row => ({
+        id: row.id,
+        agent_id: row.agent_id,
+        subscriber_id: row.subscriber_id,
+        insured_id: row.insured_id,
+        first_name: row.subscriber_first_name,
+        last_name: row.subscriber_last_name,
+        email: row.subscriber_email,
+        phone: row.subscriber_phone,
+        cin: row.subscriber_cin,
+        city: row.subscriber_city,
+        date_of_birth: row.subscriber_dob,
+        birth_place: row.subscriber_birth_place,
+        status: row.status,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        data: row.data
+      })),
+      pagination: {
+        limit,
+        offset,
+        total: parseInt(countResult.rows[0].count)
+      }
+    };
   }
 
   /**

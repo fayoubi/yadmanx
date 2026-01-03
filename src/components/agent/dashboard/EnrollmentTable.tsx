@@ -81,47 +81,23 @@ const EnrollmentTable: React.FC = () => {
     }
   };
 
-  const handleStartNewApplication = async () => {
-    if (!token) return;
-
-    try {
-      // Create new enrollment via enrollment-service
-      const response = await fetch(`${ENROLLMENT_SERVICE_URL}/enrollments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create enrollment');
-      }
-
-      const data = await response.json();
-      const enrollmentId = data.enrollment?.id || data.data?.id || data.id;
-
-      // Store enrollment ID and navigate to enrollment flow
-      sessionStorage.setItem('current_enrollment_id', enrollmentId);
-      navigate('/enroll/start');
-    } catch (err: any) {
-      console.error('Error creating enrollment:', err);
-      alert(`Failed to start new application: ${err.message}`);
-    }
+  const handleStartNewApplication = () => {
+    // Navigate to enrollment start page without creating enrollment
+    // Enrollment will be created when user submits personal info
+    sessionStorage.removeItem('current_enrollment_id');
+    navigate('/enroll/start');
   };
 
   const handleViewEnrollment = (enrollmentId: string) => {
-    // For now, just navigate to enrollment flow
+    // Navigate to enrollment flow with enrollmentId in URL
     sessionStorage.setItem('current_enrollment_id', enrollmentId);
-    navigate('/enroll/start');
+    navigate(`/enroll/start?enrollmentId=${enrollmentId}`);
   };
 
   const handleContinueEnrollment = (enrollmentId: string) => {
-    // Continue draft enrollment
+    // Continue draft enrollment with enrollmentId in URL
     sessionStorage.setItem('current_enrollment_id', enrollmentId);
-    navigate('/enroll/start');
+    navigate(`/enroll/start?enrollmentId=${enrollmentId}`);
   };
 
   if (isLoading) {
