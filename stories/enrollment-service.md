@@ -196,24 +196,19 @@ CREATE INDEX idx_audit_enrollment ON enrollment_audit_log(enrollment_id);
 4. `PATCH /api/v1/enrollments/:id/status` - Update enrollment status
 5. `DELETE /api/v1/enrollments/:id` - Cancel enrollment
 
-### Step Management
-6. `POST /api/v1/enrollments/:id/steps/:stepId` - Save step data
-7. `GET /api/v1/enrollments/:id/steps/:stepId` - Get step data
-8. `GET /api/v1/enrollments/:id/steps` - Get all steps
-
 ### Billing
-9. `POST /api/v1/enrollments/:id/billing` - Save billing data (with encryption)
-10. `GET /api/v1/enrollments/:id/billing` - Get billing data (masked)
+6. `POST /api/v1/enrollments/:id/billing` - Save billing data (with encryption)
+7. `GET /api/v1/enrollments/:id/billing` - Get billing data (masked)
 
 ### Beneficiaries
-11. `POST /api/v1/enrollments/:id/beneficiaries` - Add beneficiaries
-12. `GET /api/v1/enrollments/:id/beneficiaries` - Get beneficiaries
-13. `PUT /api/v1/enrollments/:id/beneficiaries/:beneficiaryId` - Update beneficiary
-14. `DELETE /api/v1/enrollments/:id/beneficiaries/:beneficiaryId` - Remove beneficiary
+8. `POST /api/v1/enrollments/:id/beneficiaries` - Add beneficiaries
+9. `GET /api/v1/enrollments/:id/beneficiaries` - Get beneficiaries
+10. `PUT /api/v1/enrollments/:id/beneficiaries/:beneficiaryId` - Update beneficiary
+11. `DELETE /api/v1/enrollments/:id/beneficiaries/:beneficiaryId` - Remove beneficiary
 
 ### Summary & Submission
-15. `GET /api/v1/enrollments/:id/summary` - Get complete enrollment summary
-16. `POST /api/v1/enrollments/:id/submit` - Submit enrollment for processing
+12. `GET /api/v1/enrollments/:id/summary` - Get complete enrollment summary
+13. `POST /api/v1/enrollments/:id/submit` - Submit enrollment for processing
 
 ## Seed Data Requirements
 

@@ -7,35 +7,11 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { agent, logout, token } = useAgentAuth();
 
-  const handleStartNewApplication = async () => {
-    if (!token || !agent) return;
-
-    try {
-      // Create new enrollment via enrollment-service
-      const response = await fetch('http://localhost:3002/api/v1/enrollments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create enrollment');
-      }
-
-      const data = await response.json();
-      const enrollmentId = data.enrollment?.id || data.data?.id || data.id;
-
-      // Store enrollment ID and navigate to enrollment flow
-      sessionStorage.setItem('current_enrollment_id', enrollmentId);
-      navigate('/enroll/start');
-    } catch (err: any) {
-      console.error('Error creating enrollment:', err);
-      alert(`Failed to start new application: ${err.message}`);
-    }
+  const handleStartNewApplication = () => {
+    // Simply navigate to enrollment start page
+    // Enrollment will be created when user submits personal info
+    sessionStorage.removeItem('current_enrollment_id'); // Clear any existing ID
+    navigate('/enroll/start');
   };
 
   const handleLogout = () => {

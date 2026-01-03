@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { User, Shield, Camera, CheckCircle, AlertTriangle } from 'lucide-react';
 import { nationalitiesFr } from '../constants/nationalitiesFr';
 import IDScanner from './IDScanner';
 import { IDScanResult } from '../types/idScanner';
 import { FieldMappingService } from '../services/FieldMappingService';
 import { useQuote } from '../context/QuoteContext';
+import { useAgentAuth } from '../context/AgentAuthContext';
 
 // Minimal French → English country mapping for the cities package
 const frToEnCountry: Record<string, string> = {
@@ -34,6 +36,7 @@ type Person = {
   lastName: string;
   firstName: string;
   idNumber: string;
+  email: string;
   nationality: string;
   passportNumber: string;
   residencePermit: string;
@@ -56,6 +59,7 @@ const emptyPerson: Person = {
   lastName: '',
   firstName: '',
   idNumber: '',
+  email: '',
   nationality: '',
   passportNumber: '',
   residencePermit: '',
@@ -71,6 +75,34 @@ const emptyPerson: Person = {
   numberOfChildren: '',
   usCitizen: '',
   tin: ''
+};
+
+// Map API customer object (snake_case) to frontend Person (camelCase)
+const mapCustomerToPerson = (customer: any): Person => {
+  if (!customer) return { ...emptyPerson };
+
+  return {
+    salutation: customer.salutation || '',
+    lastName: customer.last_name || '',
+    firstName: customer.first_name || '',
+    idNumber: customer.cin || '',
+    email: customer.email || '',
+    nationality: customer.nationality || '',
+    passportNumber: customer.passport_number || '',
+    residencePermit: customer.residence_permit || '',
+    birthDate: customer.date_of_birth || '',
+    birthPlace: customer.birth_place || '',
+    address: customer.address || '',
+    city: customer.city || '',
+    country: customer.country || '',
+    phone: customer.phone || '',
+    occupation: customer.occupation || '',
+    maritalStatus: customer.marital_status || '',
+    widowed: customer.widowed === true || customer.widowed === 'true',
+    numberOfChildren: customer.number_of_children || '',
+    usCitizen: customer.us_citizen || '',
+    tin: customer.tin || ''
+  };
 };
 
 interface PersonSectionProps {
@@ -407,6 +439,8 @@ const PersonSection: React.FC<PersonSectionProps> = ({ title, person, section, i
 
 const InsuranceForm: React.FC = () => {
   const { prepopulationUtils } = useQuote();
+  const { token } = useAgentAuth();
+  const [searchParams] = useSearchParams();
   const [insuredSameAsSubscriber, setInsuredSameAsSubscriber] = useState<boolean>(true);
   const [formData, setFormData] = useState<{ subscriber: Person; insured: Person }>({
     subscriber: { ...emptyPerson },
@@ -446,12 +480,18 @@ const InsuranceForm: React.FC = () => {
   // Load existing enrollment data if viewing/editing
   useEffect(() => {
     const loadEnrollmentData = async () => {
-      const enrollmentId = sessionStorage.getItem('current_enrollment_id');
+      // First check URL params, then fall back to sessionStorage
+      const enrollmentId = searchParams.get('enrollmentId') || sessionStorage.getItem('current_enrollment_id');
       console.log('Loading enrollment data for ID:', enrollmentId);
 
       if (!enrollmentId) {
-        console.log('No enrollment ID found in sessionStorage');
+        console.log('No enrollment ID found - new enrollment mode');
         return;
+      }
+
+      // Update sessionStorage to match URL param
+      if (searchParams.get('enrollmentId')) {
+        sessionStorage.setItem('current_enrollment_id', enrollmentId);
       }
 
       try {
@@ -472,7 +512,7 @@ const InsuranceForm: React.FC = () => {
         const data = await response.json();
         console.log('Enrollment data received:', data);
 
-        const enrollment = data.data || data.enrollment;
+        const enrollment = data.enrollment;
         console.log('Parsed enrollment:', enrollment);
 
         if (!enrollment) {
@@ -480,84 +520,47 @@ const InsuranceForm: React.FC = () => {
           return;
         }
 
-        // First check if we have step data saved
-        try {
-          const stepResponse = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}/steps/customer_info`, {
-            headers: {
-              'x-agent-id': '11111111-1111-1111-1111-111111111111'
-            }
-          });
+        // Map subscriber data
+        const subscriberPerson = mapCustomerToPerson(enrollment.subscriber);
+        console.log('Mapped subscriber:', subscriberPerson);
 
-          if (stepResponse.ok) {
-            const stepData = await stepResponse.json();
-            console.log('Step data received:', stepData);
+        // Map insured data
+        let insuredPerson: Person;
+        let sameAsSubscriber: boolean;
 
-            if (stepData.success && stepData.data?.step_data) {
-              const savedData = stepData.data.step_data;
-              console.log('Using saved step data:', savedData);
-
-              setFormData({
-                subscriber: savedData.subscriber || { ...emptyPerson },
-                insured: savedData.insured || { ...emptyPerson }
-              });
-
-              setInsuredSameAsSubscriber(savedData.insuredSameAsSubscriber ?? true);
-              return;
-            }
-          }
-        } catch (stepError) {
-          console.log('No step data found, using enrollment metadata');
+        if (enrollment.insured_id === null) {
+          // insured_id is null → insured same as subscriber
+          insuredPerson = { ...subscriberPerson };
+          sameAsSubscriber = true;
+          console.log('insured_id is null - using subscriber data for insured');
+        } else {
+          // insured_id exists → map insured data
+          insuredPerson = mapCustomerToPerson(enrollment.insured);
+          sameAsSubscriber = false;
+          console.log('insured_id exists - using separate insured data:', insuredPerson);
         }
 
-        // Fallback to enrollment metadata
-        const customer = enrollment.customer;
-        const metadata = enrollment.metadata || {};
-        console.log('Customer:', customer);
-        console.log('Metadata:', metadata);
-
-        if (customer || metadata.subscriber) {
-          const subscriberData = metadata.subscriber || {
-            salutation: '',
-            lastName: customer?.last_name || '',
-            firstName: customer?.first_name || '',
-            idNumber: customer?.cin || '',
-            nationality: '',
-            passportNumber: '',
-            residencePermit: '',
-            birthDate: customer?.date_of_birth || '',
-            birthPlace: '',
-            address: customer?.address?.street || '',
-            city: customer?.address?.city || '',
-            country: customer?.address?.country || '',
-            phone: customer?.phone || '',
-            occupation: '',
-            maritalStatus: '',
-            widowed: false,
-            numberOfChildren: '',
-            usCitizen: '',
-            tin: ''
-          };
-
-          const insuredData = metadata.insured || { ...subscriberData };
-          const sameAsSubscriber = metadata.insuredSameAsSubscriber ?? true;
-
-          console.log('Setting form data - subscriber:', subscriberData);
-          console.log('Setting form data - insured:', insuredData);
-
-          setFormData({
-            subscriber: subscriberData,
-            insured: insuredData
-          });
-
-          setInsuredSameAsSubscriber(sameAsSubscriber);
+        // Override with data.personalInfo.insuredSameAsSubscriber if present
+        if (enrollment.data?.personalInfo?.insuredSameAsSubscriber !== undefined) {
+          sameAsSubscriber = enrollment.data.personalInfo.insuredSameAsSubscriber;
+          console.log('Using insuredSameAsSubscriber from data.personalInfo:', sameAsSubscriber);
         }
+
+        // Set form state
+        setFormData({
+          subscriber: subscriberPerson,
+          insured: insuredPerson
+        });
+
+        setInsuredSameAsSubscriber(sameAsSubscriber);
+        console.log('Form data loaded successfully');
       } catch (error) {
         console.error('Error loading enrollment data:', error);
       }
     };
 
     loadEnrollmentData();
-  }, []);
+  }, [searchParams]);
 
   // Auto-save when user returns from next step
   useEffect(() => {
@@ -685,37 +688,24 @@ const InsuranceForm: React.FC = () => {
         return;
       }
 
-      // Check if we're updating an existing enrollment or creating a new one
-      const existingEnrollmentId = sessionStorage.getItem('current_enrollment_id');
-      let enrollmentId: string;
+      if (!formData.subscriber.idNumber) {
+        alert('Veuillez remplir le numéro CIN du souscripteur');
+        return;
+      }
 
-      if (existingEnrollmentId) {
-        enrollmentId = existingEnrollmentId;
-      } else {
-        // Create new enrollment with customer data
-        const response = await fetch('http://localhost:3002/api/v1/enrollments', {
+      // Check if we're updating an existing enrollment or creating a new one
+      const enrollmentId = searchParams.get('enrollmentId') || sessionStorage.getItem('current_enrollment_id');
+
+      if (!enrollmentId) {
+        // NEW ENROLLMENT - Call initialize endpoint
+        const initResponse = await fetch('http://localhost:3002/api/v1/enrollments/initialize', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-agent-id': '11111111-1111-1111-1111-111111111111'
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({
-            customer: {
-              cin: formData.subscriber.idNumber || `TEMP-${Date.now()}`, // Temporary CIN if not provided
-              first_name: formData.subscriber.firstName,
-              last_name: formData.subscriber.lastName,
-              date_of_birth: formData.subscriber.birthDate || '1990-01-01', // Default if not provided
-              email: formData.subscriber.phone || 'temp@example.com', // Using phone as temp email if not available
-              phone: formData.subscriber.phone,
-              address: {
-                street: formData.subscriber.address || '',
-                city: formData.subscriber.city || '',
-                country: formData.subscriber.country || '',
-              }
-            },
-            plan_id: '00000000-0000-0000-0000-000000000001', // TODO: Get from quote context - using placeholder UUID
-            effective_date: new Date().toISOString().split('T')[0],
-            metadata: {
+            personalInfo: {
               subscriber: formData.subscriber,
               insured: formData.insured,
               insuredSameAsSubscriber
@@ -723,41 +713,48 @@ const InsuranceForm: React.FC = () => {
           })
         });
 
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-          throw new Error(data.error || 'Failed to create enrollment');
+        if (!initResponse.ok) {
+          const errorData = await initResponse.json();
+          throw new Error(errorData.error || 'Failed to initialize enrollment');
         }
 
-        enrollmentId = data.data.id;
-        sessionStorage.setItem('current_enrollment_id', enrollmentId);
+        const initData = await initResponse.json();
+        const newEnrollmentId = initData.enrollment.id;
+
+        // Store enrollment ID
+        sessionStorage.setItem('current_enrollment_id', newEnrollmentId);
+
+        // Navigate to next step with enrollment ID
+        window.location.href = `/enroll/contribution?enrollmentId=${newEnrollmentId}`;
+
+      } else {
+        // EXISTING ENROLLMENT - Update as before
+        const updateResponse = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            personalInfo: {
+              subscriber: formData.subscriber,
+              insured: formData.insured,
+              insuredSameAsSubscriber
+            }
+          })
+        });
+
+        if (!updateResponse.ok) {
+          const errorData = await updateResponse.json();
+          throw new Error(errorData.error || 'Failed to update enrollment');
+        }
+
+        // Navigate to next step
+        window.location.href = `/enroll/contribution?enrollmentId=${enrollmentId}`;
       }
-
-      // Save step data using V2 PUT endpoint
-      const updateResponse = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-agent-id': '11111111-1111-1111-1111-111111111111'
-        },
-        body: JSON.stringify({
-          personalInfo: {
-            subscriber: formData.subscriber,
-            insured: formData.insured,
-            insuredSameAsSubscriber
-          }
-        })
-      });
-
-      if (!updateResponse.ok) {
-        throw new Error('Failed to save personal information');
-      }
-
-      // Navigate to contribution page with enrollmentId
-      window.location.href = `/enroll/contribution?enrollmentId=${enrollmentId}`;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save enrollment:', error);
-      alert('Une erreur s\'est produite lors de l\'enregistrement. Veuillez réessayer.');
+      alert(`Une erreur s'est produite lors de l'enregistrement: ${error.message}`);
     }
   };
 

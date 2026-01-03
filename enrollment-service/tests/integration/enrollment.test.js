@@ -95,32 +95,6 @@ describe('Enrollment Service Integration Tests', () => {
     });
   });
 
-  describe('POST /api/v1/enrollments/:id/steps/:stepId', () => {
-    it('should save step data', async () => {
-      const response = await request(app)
-        .post(`/api/v1/enrollments/${createdEnrollmentId}/steps/customer_info`)
-        .set('x-agent-id', agentId)
-        .send({
-          verified: true,
-          verification_date: new Date().toISOString(),
-        });
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-    });
-  });
-
-  describe('GET /api/v1/enrollments/:id/steps/:stepId', () => {
-    it('should get step data', async () => {
-      const response = await request(app)
-        .get(`/api/v1/enrollments/${createdEnrollmentId}/steps/customer_info`)
-        .set('x-agent-id', agentId);
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-    });
-  });
-
   describe('POST /api/v1/enrollments/:id/billing', () => {
     it('should save billing data', async () => {
       const response = await request(app)

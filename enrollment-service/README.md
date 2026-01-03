@@ -136,11 +136,6 @@ Once the service is running, access the API documentation at:
 - `PATCH /api/v1/enrollments/:id/status` - Update enrollment status
 - `DELETE /api/v1/enrollments/:id` - Cancel enrollment
 
-### Step Management
-- `POST /api/v1/enrollments/:id/steps/:stepId` - Save step data
-- `GET /api/v1/enrollments/:id/steps/:stepId` - Get step data
-- `GET /api/v1/enrollments/:id/steps` - Get all steps
-
 ### Billing
 - `POST /api/v1/enrollments/:id/billing` - Save billing data (with encryption)
 - `GET /api/v1/enrollments/:id/billing` - Get billing data (masked)

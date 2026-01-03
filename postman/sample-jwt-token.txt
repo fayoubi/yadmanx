@@ -52,10 +52,18 @@ Step 3: Request OTP Code
 -------------------------
 Use curl, Postman, or any HTTP client:
 
-  curl -X POST http://localhost:3003/api/v1/auth/send-otp \
+  curl -X POST http://localhost:3003/api/v1/auth/request-otp \
     -H "Content-Type: application/json" \
     -d '{
       "phone_number": "+212612345678"
+    }'
+
+Or for a test number:
+
+  curl -X POST http://localhost:3003/api/v1/auth/request-otp \
+    -H "Content-Type: application/json" \
+    -d '{
+      "phone_number": "+212000000000"
     }'
 
 Response:
@@ -279,7 +287,7 @@ Default Values (Postman Environment):
   jwt_token: (you must set this)
 
 Agent Service Endpoints:
-  POST /api/v1/auth/send-otp
+  POST /api/v1/auth/request-otp
   POST /api/v1/auth/verify-otp
 
 Enrollment Service Endpoints:
