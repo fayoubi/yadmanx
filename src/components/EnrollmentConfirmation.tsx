@@ -47,43 +47,60 @@ const EnrollmentConfirmation: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // Fetch actual enrollment summary from API
-      const response = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}/summary`, {
+      // Fetch enrollment data from API (using existing endpoint)
+      const response = await fetch(`http://localhost:3002/api/v1/enrollments/${enrollmentId}`, {
         headers: {
           'x-agent-id': '11111111-1111-1111-1111-111111111111'
         }
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to load enrollment summary');
+      if (!response.ok) {
+        throw new Error('Failed to load enrollment data');
       }
 
-      // Transform API response to match component interface
-      const apiSummary = data.data;
+      const data = await response.json();
 
+      if (!data.success || !data.enrollment) {
+        throw new Error('Invalid enrollment data');
+      }
+
+      const enrollment = data.enrollment;
+      const contribution = enrollment.data?.contribution || {};
+      const beneficiaries = enrollment.data?.beneficiaries || [];
+      const subscriber = enrollment.subscriber || enrollment.customer; // Fallback to customer for backward compat
+
+      // Transform API response to match component interface
       const summary: EnrollmentSummary = {
         enrollment: {
-          id: apiSummary.enrollment.id,
-          status: apiSummary.enrollment.status,
-          plan_id: apiSummary.enrollment.plan_id,
-          effective_date: apiSummary.enrollment.effective_date,
+          id: enrollment.id,
+          status: null, // V2 doesn't use status
+          plan_id: null, // V2 doesn't use plan_id
+          effective_date: contribution.effectiveDate || null,
         },
         customer: {
-          first_name: apiSummary.enrollment.first_name,
-          last_name: apiSummary.enrollment.last_name,
-          email: apiSummary.enrollment.email,
-          phone: apiSummary.enrollment.phone,
+          first_name: subscriber?.first_name || '',
+          last_name: subscriber?.last_name || '',
+          email: subscriber?.email || '',
+          phone: subscriber?.phone || '',
         },
-        billing: apiSummary.billing ? {
-          contribution_amount: apiSummary.billing.contribution_amount,
-          contribution_frequency: apiSummary.billing.contribution_frequency,
-          payment_method_type: apiSummary.billing.payment_method_type,
-          payment_method_last_four: apiSummary.billing.payment_method_last_four,
+        billing: contribution.amount ? {
+          contribution_amount: contribution.amount,
+          contribution_frequency: contribution.frequency || 'monthly',
+          payment_method_type: contribution.paymentMode?.mode || 'check',
+          payment_method_last_four: contribution.paymentMode?.accountNumber?.slice(-4) || contribution.paymentMode?.checkNumber?.slice(-4) || null,
         } : null,
-        beneficiaries: apiSummary.beneficiaries || [],
-        steps: apiSummary.steps || [],
+        beneficiaries: beneficiaries.map((b: any) => ({
+          id: b.id,
+          first_name: b.firstName || b.first_name || '',
+          last_name: b.lastName || b.last_name || '',
+          cin: b.cin || '',
+          date_of_birth: b.birthDate || b.date_of_birth || '',
+          place_of_birth: b.placeOfBirth || b.place_of_birth || '',
+          address: b.address || '',
+          percentage: b.percentage || 0,
+          relationship: b.relationship || '',
+        })),
+        steps: [], // V2 doesn't track steps
       };
 
       setSummary(summary);
