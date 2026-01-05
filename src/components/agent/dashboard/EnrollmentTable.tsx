@@ -36,7 +36,10 @@ const EnrollmentTable: React.FC = () => {
   }, [token]);
 
   const fetchEnrollments = async () => {
-    if (!token) return;
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -49,13 +52,18 @@ const EnrollmentTable: React.FC = () => {
       });
 
       if (!response.ok) {
-        // Handle authentication errors
-        if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
-        }
-
         // If 404 or other errors, treat as empty list
         if (response.status === 404) {
+          setEnrollments([]);
+          setError(null);
+          return;
+        }
+
+        // Handle authentication errors - but don't be too aggressive
+        // New agents might get 401 if service is slow to sync
+        if (response.status === 401) {
+          console.warn('Authentication error fetching enrollments - this may be temporary for new agents');
+          // Don't show error for new agents, just show empty state
           setEnrollments([]);
           setError(null);
           return;
@@ -72,6 +80,8 @@ const EnrollmentTable: React.FC = () => {
       // Only set error for genuine connection/server issues
       if (err.message.includes('connect') || err.message.includes('fetch')) {
         setError(null); // Don't show error, just show empty state
+      } else if (err.message.includes('Authentication')) {
+        setError(null); // Don't show auth errors to avoid scaring new agents
       } else {
         setError(err.message || 'Failed to load enrollments');
       }

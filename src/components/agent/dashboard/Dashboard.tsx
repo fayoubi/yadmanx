@@ -1,11 +1,12 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAgentAuth } from '../../../context/AgentAuthContext';
+import { Shield } from 'lucide-react';
 import EnrollmentTable from './EnrollmentTable';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { agent, logout, token } = useAgentAuth();
+  const { agent, logout } = useAgentAuth();
 
   const handleStartNewApplication = () => {
     // Simply navigate to enrollment start page
@@ -25,24 +26,50 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      {/* Header - Blue with navigation matching mockup */}
+      <header className="bg-primary-900 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {agent.firstName} {agent.lastName}
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                {agent.agencyName} • License: {agent.licenseNumber}
-              </p>
+            {/* Left side - Logo and Navigation */}
+            <div className="flex items-center space-x-8">
+              <Link to="/" className="flex items-center space-x-2">
+                <Shield className="h-6 w-6 text-white" />
+                <span className="text-xl font-bold text-white">YadmanX</span>
+              </Link>
+              <nav className="flex items-center space-x-6">
+                <Link
+                  to="/agent/dashboard"
+                  className="text-white font-medium hover:text-white/90 transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/about"
+                  className="text-white hover:text-white/90 transition-colors"
+                >
+                  About
+                </Link>
+                <Link
+                  to="/contact"
+                  className="text-white hover:text-white/90 transition-colors"
+                >
+                  Contact
+                </Link>
+              </nav>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Logout
-            </button>
+
+            {/* Right side - Agent Info and Logout */}
+            <div className="flex items-center space-x-4">
+              <div className="text-white text-sm font-medium">
+                {agent.firstName} {agent.lastName} | Lic# {agent.licenseNumber}
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm font-medium text-white border-2 border-white rounded-md hover:bg-white hover:text-primary-900 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </header>

@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   # Pricing Service
   pricing-service:
+    container_name: yadmanx-pricing-service
     build: ./pricing-service
     ports:
       - "3001:3001"
@@ -21,6 +20,7 @@ services:
     restart: unless-stopped
 
   pricing-db:
+    container_name: yadmanx-pricing-db
     image: postgres:15
     environment:
       - POSTGRES_DB=pricing
@@ -34,6 +34,7 @@ services:
     restart: unless-stopped
 
   pricing-redis:
+    container_name: yadmanx-pricing-redis
     image: redis:7-alpine
     ports:
       - "6379:6379"
@@ -43,6 +44,7 @@ services:
 
   # Enrollment Service
   enrollment-service:
+    container_name: yadmanx-enrollment-service
     build: ./enrollment-service
     ports:
       - "3002:3002"
@@ -59,6 +61,7 @@ services:
     restart: unless-stopped
 
   enrollment-db:
+    container_name: yadmanx-enrollment-db
     image: postgres:15
     environment:
       - POSTGRES_DB=enrollment
@@ -73,6 +76,7 @@ services:
 
   # Agent Service
   agent-service:
+    container_name: yadmanx-agent-service
     build: ./agent-service
     ports:
       - "3003:3003"
@@ -110,6 +114,7 @@ services:
 
   # LLM Quote Service
   llm-quote-service:
+    container_name: yadmanx-llm-quote-service
     build: ./llm-quote-service
     ports:
       - "3004:3004"
@@ -131,6 +136,7 @@ services:
     restart: unless-stopped
 
   llm-quote-redis:
+    container_name: yadmanx-llm-quote-redis
     image: redis:7-alpine
     ports:
       - "6380:6379"
@@ -140,6 +146,7 @@ services:
 
   # pgAdmin
   pgadmin:
+    container_name: yadmanx-pgadmin
     image: dpage/pgadmin4:latest
     environment:
       - PGADMIN_DEFAULT_EMAIL=admin@yadmanx.com

@@ -10,10 +10,12 @@ import {
   Users,
   FileText,
   ArrowLeft,
-  Send
+  Send,
+  Briefcase
 } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
+import { useAgentAuth } from '../context/AgentAuthContext';
 
 interface EnrollmentSummary {
   enrollment: any;
@@ -23,18 +25,33 @@ interface EnrollmentSummary {
   steps: any[];
 }
 
+interface AgentInfo {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  licenseNumber: string;
+  agencyName?: string;
+  address?: string;
+}
+
 const EnrollmentConfirmation: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const enrollmentId = searchParams.get('enrollmentId');
+  const { token } = useAgentAuth();
 
   const [summary, setSummary] = useState<EnrollmentSummary | null>(null);
+  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     loadSummary();
+    loadAgentInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enrollmentId]);
 
   const loadSummary = async () => {
@@ -109,6 +126,44 @@ const EnrollmentConfirmation: React.FC = () => {
       console.error('Failed to load summary:', err);
       setError('Échec du chargement du résumé de l\'inscription');
       setIsLoading(false);
+    }
+  };
+
+  const loadAgentInfo = async () => {
+    if (!token) {
+      console.warn('No authentication token available');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:3003/api/v1/agents/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load agent data');
+      }
+
+      const result = await response.json();
+      const agentData = result.data || result;
+
+      const agent: AgentInfo = {
+        id: agentData.id,
+        firstName: agentData.first_name || agentData.firstName,
+        lastName: agentData.last_name || agentData.lastName,
+        email: agentData.email,
+        phone: agentData.phone || agentData.phone_number,
+        licenseNumber: agentData.license_number || agentData.licenseNumber,
+        agencyName: agentData.agency_name || agentData.agencyName || '',
+        address: agentData.address || '',
+      };
+
+      setAgentInfo(agent);
+    } catch (err) {
+      console.error('Failed to load agent info:', err);
+      // Don't set error state - agent info is optional
     }
   };
 
@@ -275,6 +330,62 @@ const EnrollmentConfirmation: React.FC = () => {
             </div>
           </div>
         </Card>
+
+        {/* Agent Information */}
+        {agentInfo && (
+          <Card className="p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <Briefcase className="h-6 w-6 text-blue-600 mr-3" />
+                <h2 className="text-xl font-semibold text-gray-900">Informations Agent</h2>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled
+                className="opacity-50 cursor-not-allowed"
+                title="La modification de l'agent n'est pas disponible actuellement"
+              >
+                <Edit className="h-4 w-4 mr-1" />
+                Modifier
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-600">Nom</p>
+                <p className="font-medium text-gray-900">{agentInfo.lastName}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Prénom</p>
+                <p className="font-medium text-gray-900">{agentInfo.firstName}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Email</p>
+                <p className="font-medium text-gray-900">{agentInfo.email}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Téléphone</p>
+                <p className="font-medium text-gray-900">{agentInfo.phone}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Numéro de licence</p>
+                <p className="font-medium text-gray-900">{agentInfo.licenseNumber}</p>
+              </div>
+              {agentInfo.agencyName && (
+                <div>
+                  <p className="text-gray-600">Agence</p>
+                  <p className="font-medium text-gray-900">{agentInfo.agencyName}</p>
+                </div>
+              )}
+              {agentInfo.address && (
+                <div className="md:col-span-2">
+                  <p className="text-gray-600">Adresse</p>
+                  <p className="font-medium text-gray-900">{agentInfo.address}</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* Billing Information */}
         {summary.billing && (

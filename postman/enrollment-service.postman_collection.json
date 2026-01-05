@@ -190,6 +190,51 @@
 						"description": "Verify the OTP code and receive a JWT token.\n\n**IMPORTANT**: Replace `123456` in the request body with the actual OTP code you received.\n\n**Auto-saves:**\n- `jwt_token` - Automatically saved to environment for subsequent requests\n- `agent_id` - Saved from response\n\nToken expires in 24 hours."
 					},
 					"response": []
+				},
+				{
+					"name": "Get Agent Profile (Me)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains agent data', function () {",
+									"    var jsonData = pm.response.json();",
+									"    var agentData = jsonData.data || jsonData;",
+									"    pm.expect(agentData.id).to.exist;",
+									"    pm.expect(agentData.email).to.exist;",
+									"});",
+									"",
+									"pm.test('Agent has required profile fields', function () {",
+									"    var jsonData = pm.response.json();",
+									"    var agentData = jsonData.data || jsonData;",
+									"    pm.expect(agentData.first_name || agentData.firstName).to.exist;",
+									"    pm.expect(agentData.last_name || agentData.lastName).to.exist;",
+									"    pm.expect(agentData.phone || agentData.phone_number).to.exist;",
+									"    pm.expect(agentData.license_number || agentData.licenseNumber).to.exist;",
+									"});",
+									"",
+									"console.log('✅ Agent profile retrieved successfully');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{agent_base_url}}/api/{{api_version}}/agents/me",
+							"host": ["{{agent_base_url}}"],
+							"path": ["api", "{{api_version}}", "agents", "me"]
+						},
+						"description": "Retrieve the authenticated agent's profile information using the JWT token.\n\n**Authentication**: Requires valid JWT token (automatically included from collection-level auth).\n\n**Returns:**\n- Agent ID\n- First name and last name\n- Email\n- Phone number\n- License number\n- Agency name (if available)\n- Address (if available)\n\n**Used by:** Enrollment confirmation page to display agent information."
+					},
+					"response": []
 				}
 			],
 			"description": "Agent Service authentication endpoints for generating JWT tokens. Start here to get your authentication token before testing enrollment endpoints."
@@ -206,7 +251,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{enrollment_base_url}}/health",
+							"raw": "{{enrollment_base_url}}/api/{{api_version}}/health",
 							"host": ["{{enrollment_base_url}}"],
 							"path": ["health"]
 						},
