@@ -379,7 +379,7 @@
 									"    if (jsonData.enrollments.length > 0) {",
 									"        var enrollment = jsonData.enrollments[0];",
 									"        pm.expect(enrollment).to.have.property('id');",
-									"        pm.expect(enrollment).to.have.property('customer');",
+									"        pm.expect(enrollment).to.have.property('subscriber');",
 									"        pm.expect(enrollment).to.have.property('createdAt');",
 									"    }",
 									"});"

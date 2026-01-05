@@ -93,7 +93,7 @@ class EnrollmentControllerV2 {
       // Format enrollments for frontend display
       const formattedEnrollments = result.enrollments.map(enrollment => ({
         id: enrollment.id,
-        customer: {
+        subscriber: {
           firstName: enrollment.first_name,
           lastName: enrollment.last_name,
           fullName: formatFullName(enrollment.first_name, enrollment.last_name),
