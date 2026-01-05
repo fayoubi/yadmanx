@@ -55,22 +55,29 @@ export class BeneficiariesService {
         return [];
       }
 
-      // Map API response (camelCase) to Beneficiary interface (snake_case)
-      return beneficiariesData.map((b: any, index: number) => ({
-        id: b.id,
-        enrollment_id: enrollmentId,
-        last_name: b.lastName || b.last_name || '',
-        first_name: b.firstName || b.first_name || '',
-        cin: b.cin || '',
-        date_of_birth: b.birthDate || b.date_of_birth || '',
-        place_of_birth: b.placeOfBirth || b.place_of_birth || b.birthPlace || '',
-        address: b.address || '',
-        percentage: b.percentage || 0,
-        order_index: b.displayOrder || b.order_index || index + 1,
-        created_at: b.created_at,
-        updated_at: b.updated_at,
-        deleted_at: b.deleted_at
-      }));
+      // Map API response to Beneficiary interface
+      // Handle both camelCase and snake_case, and nested address structure
+      return beneficiariesData.map((b: any, index: number) => {
+        // Handle nested address object structure
+        const addressObj = typeof b.address === 'object' && b.address !== null ? b.address : {};
+        const addressString = typeof b.address === 'string' ? b.address : (addressObj.address || '');
+        
+        return {
+          id: b.id,
+          enrollment_id: enrollmentId,
+          last_name: b.lastName || b.last_name || '',
+          first_name: b.firstName || b.first_name || '',
+          cin: b.cin || addressObj.cin || '',
+          date_of_birth: b.birthDate || b.date_of_birth || '',
+          place_of_birth: b.placeOfBirth || b.place_of_birth || addressObj.place_of_birth || b.birthPlace || '',
+          address: addressString,
+          percentage: b.percentage || 0,
+          order_index: index + 1, // Simple index-based ordering
+          created_at: b.created_at,
+          updated_at: b.updated_at,
+          deleted_at: b.deleted_at
+        };
+      });
     } catch (error) {
       console.error('Error fetching beneficiaries:', error);
       return [];

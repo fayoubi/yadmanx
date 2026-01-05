@@ -6,7 +6,7 @@ import EmptyState from './EmptyState';
 
 interface Enrollment {
   id: string;
-  customer: {
+  subscriber: {
     firstName: string;
     lastName: string;
     fullName: string;
@@ -179,24 +179,24 @@ const EnrollmentTable: React.FC = () => {
           {enrollments.map((enrollment) => (
             <tr key={enrollment.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {enrollment.customer.firstName || 'N/A'}
+                {enrollment.subscriber.firstName || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {enrollment.customer.lastName || 'N/A'}
+                {enrollment.subscriber.lastName || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                {enrollment.customer.email || 'N/A'}
+                {enrollment.subscriber.email || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                {enrollment.customer.phone || 'N/A'}
+                {enrollment.subscriber.phone || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 <span className="text-gray-400 cursor-default">
-                  {enrollment.customer.cinMasked || '****'}
+                  {enrollment.subscriber.cinMasked || '****'}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                {enrollment.customer.city || 'N/A'}
+                {enrollment.subscriber.city || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <StatusBadge status={enrollment.status || ''} />
