@@ -23,6 +23,9 @@ class AuthController {
       agency_name,
     });
 
+    // Sync agent to enrollment service (non-blocking)
+    await agentService.syncToEnrollmentService(agent);
+
     // Generate OTP for verification
     const otp = await otpService.createOTP(agent.phone_number, 'sms');
 
@@ -101,6 +104,9 @@ class AuthController {
 
     // Update last login timestamp
     await agentService.updateLastLogin(agent.id);
+
+    // Sync agent to enrollment service (non-blocking)
+    await agentService.syncToEnrollmentService(agent);
 
     // Generate token
     const token = tokenService.generateToken(agent);

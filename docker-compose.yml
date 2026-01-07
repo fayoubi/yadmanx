@@ -53,6 +53,7 @@ services:
       - PORT=3002
       - DATABASE_URL=postgresql://postgres:postgres@enrollment-db:5432/enrollment
       - ENCRYPTION_KEY=dev-key-change-in-production
+      - JWT_SECRET=dev-jwt-secret-change-in-production
     depends_on:
       - enrollment-db
     volumes:
