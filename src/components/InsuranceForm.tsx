@@ -201,59 +201,25 @@ const PersonSection: React.FC<PersonSectionProps> = ({ title, person, section, i
         />
       </div>
 
-      <div className="md:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Nationalité</label>
-          <div className="relative">
-            <select
-              value={person.nationality}
-              onChange={(e) => {
-                if (readOnly) return;
-                onChange(section, 'nationality', e.target.value);
-                onChange(section, 'city', ''); // reset city when nationality changes
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-              disabled={readOnly}
-              aria-disabled={readOnly}
-            >
-              <option value="">Sélectionnez une nationalité</option>
-              {nationalitiesFr.map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Ville
-            {isFieldPrepopulated('city') && (
-              <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Pré-rempli depuis votre devis</span>
-            )}
-          </label>
-          <div className="relative">
-            <select
-              value={person.city}
-              onChange={(e) => !readOnly && onChange(section, 'city', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none ${
-                !person.nationality || readOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' :
-                isFieldPrepopulated('city') ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-white'
-              }`}
-              disabled={!person.nationality || readOnly || (!!person.nationality && (isLoadingCities ?? false))}
-              aria-disabled={!person.nationality || readOnly}
-            >
-              <option value="">
-                {!person.nationality
-                  ? 'Sélectionnez une nationalité d\'abord'
-                  : isLoadingCities
-                    ? 'Chargement...'
-                    : 'Sélectionnez une ville'
-                }
-              </option>
-              {cities.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Nationalité</label>
+        <div className="relative">
+          <select
+            value={person.nationality}
+            onChange={(e) => {
+              if (readOnly) return;
+              onChange(section, 'nationality', e.target.value);
+              onChange(section, 'city', ''); // reset city when nationality changes
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+            disabled={readOnly}
+            aria-disabled={readOnly}
+          >
+            <option value="">Sélectionnez une nationalité</option>
+            {nationalitiesFr.map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -312,7 +278,7 @@ const PersonSection: React.FC<PersonSectionProps> = ({ title, person, section, i
         />
       </div>
 
-      <div className="md:col-span-2">
+      <div className="md:col-span-3">
         <label className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
         <input
           type="text"
@@ -324,31 +290,81 @@ const PersonSection: React.FC<PersonSectionProps> = ({ title, person, section, i
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Pays</label>
-        <input
-          type="text"
-          value={person.country}
-          onChange={(e) => !readOnly && onChange(section, 'country', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          readOnly={readOnly}
-          aria-disabled={readOnly}
-        />
+      <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Ville
+            {isFieldPrepopulated('city') && (
+              <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Pré-rempli depuis votre devis</span>
+            )}
+          </label>
+          <div className="relative">
+            <select
+              value={person.city}
+              onChange={(e) => !readOnly && onChange(section, 'city', e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none ${
+                !person.nationality || readOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' :
+                isFieldPrepopulated('city') ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-white'
+              }`}
+              disabled={!person.nationality || readOnly || (!!person.nationality && (isLoadingCities ?? false))}
+              aria-disabled={!person.nationality || readOnly}
+            >
+              <option value="">
+                {!person.nationality
+                  ? 'Sélectionnez une nationalité d\'abord'
+                  : isLoadingCities
+                    ? 'Chargement...'
+                    : 'Sélectionnez une ville'
+                }
+              </option>
+              {cities.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Pays</label>
+          <input
+            type="text"
+            value={person.country}
+            onChange={(e) => !readOnly && onChange(section, 'country', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            readOnly={readOnly}
+            aria-disabled={readOnly}
+          />
+        </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">N° téléphone</label>
-        <input
-          type="tel"
-          value={person.phone}
-          onChange={(e) => !readOnly && onChange(section, 'phone', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          readOnly={readOnly}
-          aria-disabled={readOnly}
-        />
+      <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">N° téléphone</label>
+          <input
+            type="tel"
+            value={person.phone}
+            onChange={(e) => !readOnly && onChange(section, 'phone', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            readOnly={readOnly}
+            aria-disabled={readOnly}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+          <input
+            type="email"
+            value={person.email}
+            onChange={(e) => !readOnly && onChange(section, 'email', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="exemple@email.com"
+            readOnly={readOnly}
+            aria-disabled={readOnly}
+          />
+        </div>
       </div>
 
-      <div className="md:col-span-2">
+      <div className="md:col-span-3">
         <label className="block text-sm font-medium text-gray-700 mb-2">Profession exacte</label>
         <input
           type="text"

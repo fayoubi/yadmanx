@@ -1,12 +1,12 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAgentAuth } from '../../../context/AgentAuthContext';
-import { Shield } from 'lucide-react';
+import AuthenticatedHeader from '../../common/AuthenticatedHeader';
 import EnrollmentTable from './EnrollmentTable';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { agent, logout } = useAgentAuth();
+  const { agent } = useAgentAuth();
 
   const handleStartNewApplication = () => {
     // Simply navigate to enrollment start page
@@ -15,64 +15,14 @@ const Dashboard: React.FC = () => {
     navigate('/enroll/start');
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/agent/login');
-  };
-
   if (!agent) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header - Blue with navigation matching mockup */}
-      <header className="bg-primary-900 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          <div className="flex justify-between items-center">
-            {/* Left side - Logo and Navigation */}
-            <div className="flex items-center space-x-8">
-              <Link to="/" className="flex items-center space-x-2">
-                <Shield className="h-6 w-6 text-white" />
-                <span className="text-xl font-bold text-white">YadmanX</span>
-              </Link>
-              <nav className="flex items-center space-x-6">
-                <Link
-                  to="/agent/dashboard"
-                  className="text-white font-medium hover:text-white/90 transition-colors"
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  to="/about"
-                  className="text-white hover:text-white/90 transition-colors"
-                >
-                  About
-                </Link>
-                <Link
-                  to="/contact"
-                  className="text-white hover:text-white/90 transition-colors"
-                >
-                  Contact
-                </Link>
-              </nav>
-            </div>
-
-            {/* Right side - Agent Info and Logout */}
-            <div className="flex items-center space-x-4">
-              <div className="text-white text-sm font-medium">
-                {agent.firstName} {agent.lastName} | Lic# {agent.licenseNumber}
-              </div>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-white border-2 border-white rounded-md hover:bg-white hover:text-primary-900 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Authenticated Header */}
+      <AuthenticatedHeader context="dashboard" />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

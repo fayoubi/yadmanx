@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import QuoteForm from './components/QuoteForm';
 import QuoteDisplay from './components/QuoteDisplay';
-import Header from './components/Header';
 import ContactPage from './components/ContactPage';
 import InsuranceForm from './components/InsuranceForm';
 import EnhancedContributionForm from './components/EnhancedContributionForm';
@@ -17,7 +16,7 @@ import LoginForm from './components/agent/auth/LoginForm';
 import RegisterForm from './components/agent/auth/RegisterForm';
 import Dashboard from './components/agent/dashboard/Dashboard';
 import ProtectedRoute from './components/common/ProtectedRoute';
-import PageFooter from './components/common/PageFooter';
+import EnrollmentLayout from './components/common/EnrollmentLayout';
 import AiQuotePage from './components/ai-quote/AiQuotePage';
 
 function App() {
@@ -50,20 +49,16 @@ function App() {
 
               {/* Enrollment Routes */}
               <Route path="/enroll/*" element={
-                <>
-                  <Header />
-                  <main className="container mx-auto px-4 py-8">
-                    <Routes>
-                      <Route path="/start" element={<InsuranceForm />} />
-                      <Route path="/contribution" element={<EnhancedContributionForm />} />
-                      <Route path="/beneficiaries" element={<BeneficiariesPage />} />
-                      <Route path="/confirmation" element={<EnrollmentConfirmation />} />
-                      <Route path="/success" element={<EnrollmentSuccess />} />
-                      <Route path="/error" element={<EnrollmentError />} />
-                    </Routes>
-                  </main>
-                  <PageFooter />
-                </>
+                <EnrollmentLayout>
+                  <Routes>
+                    <Route path="/start" element={<InsuranceForm />} />
+                    <Route path="/contribution" element={<EnhancedContributionForm />} />
+                    <Route path="/beneficiaries" element={<BeneficiariesPage />} />
+                    <Route path="/confirmation" element={<EnrollmentConfirmation />} />
+                    <Route path="/success" element={<EnrollmentSuccess />} />
+                    <Route path="/error" element={<EnrollmentError />} />
+                  </Routes>
+                </EnrollmentLayout>
               } />
             </Routes>
           </div>
