@@ -278,10 +278,10 @@ class EnrollmentServiceV2 {
         END as subscriber_birth_place,
         -- Status indicator based on data presence
         CASE
-          WHEN e.data ? 'beneficiaries' THEN 'completed'
-          WHEN e.data ? 'contribution' THEN 'in_progress'
-          WHEN e.subscriber_id IS NOT NULL THEN 'draft'
-          ELSE 'new'
+          WHEN e.data ? 'beneficiaries' THEN 'started'
+          WHEN e.data ? 'contribution' THEN 'started'
+          WHEN e.subscriber_id IS NOT NULL THEN 'started'
+          ELSE 'started'
         END as status
       FROM enrollments e
       LEFT JOIN customers c ON e.subscriber_id = c.id AND c.deleted_at IS NULL

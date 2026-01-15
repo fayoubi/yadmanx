@@ -104,12 +104,6 @@ const EnrollmentTable: React.FC = () => {
     navigate(`/enroll/start?enrollmentId=${enrollmentId}`);
   };
 
-  const handleContinueEnrollment = (enrollmentId: string) => {
-    // Continue draft enrollment with enrollmentId in URL
-    sessionStorage.setItem('current_enrollment_id', enrollmentId);
-    navigate(`/enroll/start?enrollmentId=${enrollmentId}`);
-  };
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -177,12 +171,6 @@ const EnrollmentTable: React.FC = () => {
             >
               Status
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Actions
-            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
@@ -209,23 +197,13 @@ const EnrollmentTable: React.FC = () => {
                 {enrollment.subscriber.city || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <StatusBadge status={enrollment.status || ''} />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                 <button
                   onClick={() => handleViewEnrollment(enrollment.id)}
-                  className="text-blue-600 hover:text-blue-900"
+                  className="hover:opacity-80 transition-opacity cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  aria-label={`View enrollment for ${enrollment.subscriber.fullName}`}
                 >
-                  View
+                  <StatusBadge status={enrollment.status || ''} />
                 </button>
-                {enrollment.status?.toLowerCase() === 'draft' && (
-                  <button
-                    onClick={() => handleContinueEnrollment(enrollment.id)}
-                    className="text-green-600 hover:text-green-900"
-                  >
-                    Continue
-                  </button>
-                )}
               </td>
             </tr>
           ))}
