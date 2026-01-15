@@ -93,10 +93,21 @@ export const AgentAuthProvider: React.FC<AgentAuthProviderProps> = ({ children }
             };
             setAgent(agentData);
             setToken(storedToken);
-          } else {
-            // Token is invalid, clear storage
+          } else if (response.status === 401) {
+            // Only clear storage if token is actually invalid (401)
             localStorage.removeItem(TOKEN_KEY);
             localStorage.removeItem(AGENT_KEY);
+          } else {
+            // For other errors (500, network issues, etc.), fall back to stored data
+            try {
+              const parsedAgent = JSON.parse(storedAgent);
+              setAgent(parsedAgent);
+              setToken(storedToken);
+            } catch {
+              // If parsing fails, clear everything
+              localStorage.removeItem(TOKEN_KEY);
+              localStorage.removeItem(AGENT_KEY);
+            }
           }
         } catch (err) {
           console.error('Token verification failed:', err);

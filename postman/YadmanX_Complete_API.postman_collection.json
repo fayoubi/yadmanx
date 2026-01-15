@@ -1,0 +1,1044 @@
+{
+  "info": {
+    "_postman_id": "yadmanx-complete-api-collection",
+    "name": "YadmanX Complete API Collection",
+    "description": "Comprehensive API collection for all YadmanX microservices: Agent Service, Enrollment Service, Pricing Service, and LLM Quote Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "yadmanx-api"
+  },
+  "item": [
+    {
+      "name": "Agent Service (Port 3003)",
+      "description": "Agent authentication, profile management, and admin operations",
+      "item": [
+        {
+          "name": "Health & Info",
+          "item": [
+            {
+              "name": "Health Check",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/health",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "health"
+                  ]
+                },
+                "description": "Check agent service health and database connection"
+              }
+            },
+            {
+              "name": "Service Info",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{agent_base_url}}/",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    ""
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Authentication",
+          "item": [
+            {
+              "name": "1. Register Agent",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "    const response = pm.response.json();",
+                      "    if (response.data && response.data.otp && response.data.otp.code) {",
+                      "        pm.environment.set('otpCode', response.data.otp.code);",
+                      "    }",
+                      "    if (response.data && response.data.agent) {",
+                      "        pm.environment.set('phoneNumber', response.data.agent.phone_number);",
+                      "        pm.environment.set('agentId', response.data.agent.id);",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"first_name\": \"Fahd\",\n  \"last_name\": \"Ayoubi\",\n  \"email\": \"fayoubi@gmail.com\",\n  \"country_code\": \"+212\",\n  \"phone_number\": \"000000000\",\n  \"license_number\": \"PLC123\",\n  \"agency_name\": \"Ask Insurance\"\n}"
+                },
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/auth/register",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "description": "Register a new agent. Returns OTP code in development mode."
+              }
+            },
+            {
+              "name": "2. Request OTP",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    const response = pm.response.json();",
+                      "    if (response.data && response.data.code) {",
+                      "        pm.environment.set('otpCode', response.data.code);",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone_number\": \"{{phoneNumber}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/auth/request-otp",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "request-otp"
+                  ]
+                },
+                "description": "Request OTP for login"
+              }
+            },
+            {
+              "name": "3. Verify OTP & Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    const response = pm.response.json();",
+                      "    if (response.data && response.data.token) {",
+                      "        pm.environment.set('authToken', response.data.token);",
+                      "    }",
+                      "    if (response.data && response.data.agent) {",
+                      "        pm.environment.set('agentId', response.data.agent.id);",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone_number\": \"{{phoneNumber}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/auth/verify-otp",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "verify-otp"
+                  ]
+                },
+                "description": "Verify OTP and receive JWT token"
+              }
+            },
+            {
+              "name": "Refresh Token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"{{authToken}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/auth/refresh",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "refresh"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"{{authToken}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/auth/logout",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "logout"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Validate Token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"{{authToken}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/auth/validate",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "validate"
+                  ]
+                },
+                "description": "Validate token for other services (public endpoint)"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent Profile",
+          "item": [
+            {
+              "name": "Get My Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/agents/me",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "agents",
+                    "me"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update My Profile",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"first_name\": \"Updated Name\",\n  \"last_name\": \"Updated Last Name\",\n  \"email\": \"updated@example.com\"\n}"
+                },
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/agents/me",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "agents",
+                    "me"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent Enrollments",
+          "item": [
+            {
+              "name": "Get My Enrollments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/agents/enrollments",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "agents",
+                    "enrollments"
+                  ]
+                },
+                "description": "Get enrollments from enrollment service"
+              }
+            },
+            {
+              "name": "Get Enrollment By ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/agents/enrollments/:enrollmentId",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "agents",
+                    "enrollments",
+                    ":enrollmentId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "enrollmentId",
+                      "value": ""
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Operations",
+          "item": [
+            {
+              "name": "Sync All Agents to Enrollment Service",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{agent_base_url}}/api/v1/admin/sync-all-agents",
+                  "host": [
+                    "{{agent_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "sync-all-agents"
+                  ]
+                },
+                "description": "Batch sync all agents from agent-service to enrollment-service database (requires JWT authentication)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Enrollment Service (Port 3002)",
+      "description": "Enrollment creation, management, and customer data",
+      "item": [
+        {
+          "name": "Health & Info",
+          "item": [
+            {
+              "name": "Health Check",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{enrollment_base_url}}/api/v1/health",
+                  "host": [
+                    "{{enrollment_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "health"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enrollments",
+          "item": [
+            {
+              "name": "Initialize Enrollment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "    const response = pm.response.json();",
+                      "    if (response.enrollment && response.enrollment.id) {",
+                      "        pm.environment.set('enrollmentId', response.enrollment.id);",
+                      "    }",
+                      "    if (response.subscriber && response.subscriber.id) {",
+                      "        pm.environment.set('subscriberId', response.subscriber.id);",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"firstName\": \"Mohammed\",\n      \"lastName\": \"Alami\",\n      \"idNumber\": \"AB123456\",\n      \"email\": \"mohammed.alami@example.com\",\n      \"phone\": \"+212612345678\",\n      \"dateOfBirth\": \"1985-03-15\",\n      \"birthPlace\": \"Casablanca\",\n      \"city\": \"Casablanca\",\n      \"country\": \"Morocco\",\n      \"nationality\": \"Moroccan\",\n      \"occupation\": \"Engineer\",\n      \"maritalStatus\": \"married\",\n      \"numberOfChildren\": 2\n    },\n    \"insuredSameAsSubscriber\": true\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{enrollment_base_url}}/api/v1/enrollments/initialize",
+                  "host": [
+                    "{{enrollment_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "enrollments",
+                    "initialize"
+                  ]
+                },
+                "description": "Initialize enrollment with customer personal info (creates customers and enrollment)"
+              }
+            },
+            {
+              "name": "List Enrollments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{enrollment_base_url}}/api/v1/enrollments?limit=50&offset=0",
+                  "host": [
+                    "{{enrollment_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "enrollments"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "50"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    }
+                  ]
+                },
+                "description": "List all enrollments for authenticated agent"
+              }
+            },
+            {
+              "name": "Get Enrollment By ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{enrollment_base_url}}/api/v1/enrollments/{{enrollmentId}}",
+                  "host": [
+                    "{{enrollment_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "enrollments",
+                    "{{enrollmentId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Enrollment",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"personalInfo\": {\n    \"subscriber\": {\n      \"email\": \"updated@example.com\"\n    }\n  },\n  \"productSelection\": {\n    \"selectedProducts\": [\"HEALTH_INDIVIDUAL\"],\n    \"healthPlan\": \"PREMIUM\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{enrollment_base_url}}/api/v1/enrollments/{{enrollmentId}}",
+                  "host": [
+                    "{{enrollment_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "enrollments",
+                    "{{enrollmentId}}"
+                  ]
+                },
+                "description": "Update any enrollment data (always editable, no status restrictions)"
+              }
+            },
+            {
+              "name": "Delete Enrollment (Soft)",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{enrollment_base_url}}/api/v1/enrollments/{{enrollmentId}}",
+                  "host": [
+                    "{{enrollment_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "enrollments",
+                    "{{enrollmentId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent Sync (Internal)",
+          "item": [
+            {
+              "name": "Sync Agent from Agent Service",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"id\": \"{{agentId}}\",\n  \"first_name\": \"Fahd\",\n  \"last_name\": \"Ayoubi\",\n  \"email\": \"fayoubi@gmail.com\",\n  \"phone\": \"000000000\",\n  \"license_number\": \"PLC123\",\n  \"agency_name\": \"Ask Insurance\"\n}"
+                },
+                "url": {
+                  "raw": "{{enrollment_base_url}}/api/v1/agents/sync",
+                  "host": [
+                    "{{enrollment_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "agents",
+                    "sync"
+                  ]
+                },
+                "description": "Internal endpoint called by agent-service to sync agent data (no auth required)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pricing Service (Port 3001)",
+      "description": "Quote calculation, product configuration, and contribution validation",
+      "item": [
+        {
+          "name": "Health & Info",
+          "item": [
+            {
+              "name": "Health Check",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pricing_base_url}}/api/v1/health",
+                  "host": [
+                    "{{pricing_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "health"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quotes",
+          "item": [
+            {
+              "name": "Calculate Quote",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    const response = pm.response.json();",
+                      "    if (response.quoteId) {",
+                      "        pm.environment.set('quoteId', response.quoteId);",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"productType\": \"HEALTH_INDIVIDUAL\",\n  \"subscriber\": {\n    \"dateOfBirth\": \"1985-03-15\",\n    \"gender\": \"male\"\n  },\n  \"insured\": {\n    \"dateOfBirth\": \"1985-03-15\",\n    \"gender\": \"male\"\n  },\n  \"options\": {\n    \"plan\": \"STANDARD\",\n    \"contribution\": {\n      \"amount\": 500,\n      \"frequency\": \"monthly\"\n    }\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{pricing_base_url}}/api/v1/quotes/calculate",
+                  "host": [
+                    "{{pricing_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "quotes",
+                    "calculate"
+                  ]
+                },
+                "description": "Calculate insurance quote based on customer data and options"
+              }
+            },
+            {
+              "name": "Get Quote By ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pricing_base_url}}/api/v1/quotes/{{quoteId}}",
+                  "host": [
+                    "{{pricing_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "quotes",
+                    "{{quoteId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Products",
+          "item": [
+            {
+              "name": "Get Available Products",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pricing_base_url}}/api/v1/products",
+                  "host": [
+                    "{{pricing_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products"
+                  ]
+                },
+                "description": "Get list of all available insurance products"
+              }
+            },
+            {
+              "name": "Get Product Configuration",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{pricing_base_url}}/api/v1/products/:productType",
+                  "host": [
+                    "{{pricing_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products",
+                    ":productType"
+                  ],
+                  "variable": [
+                    {
+                      "key": "productType",
+                      "value": "HEALTH_INDIVIDUAL",
+                      "description": "e.g., HEALTH_INDIVIDUAL, HEALTH_FAMILY, TERM_LIFE"
+                    }
+                  ]
+                },
+                "description": "Get configuration details for a specific product type"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Contributions",
+          "item": [
+            {
+              "name": "Validate Contribution",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 500,\n  \"frequency\": \"monthly\"\n}"
+                },
+                "url": {
+                  "raw": "{{pricing_base_url}}/api/v1/contributions/validate",
+                  "host": [
+                    "{{pricing_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "contributions",
+                    "validate"
+                  ]
+                },
+                "description": "Validate contribution amount and calculate equivalents (monthly, quarterly, bi-annual, annual)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LLM Quote Service (Port 3004)",
+      "description": "AI-powered conversational quote generation with LLM",
+      "item": [
+        {
+          "name": "Health & Info",
+          "item": [
+            {
+              "name": "Health Check",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{llm_base_url}}/api/v1/health",
+                  "host": [
+                    "{{llm_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "health"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conversations",
+          "item": [
+            {
+              "name": "Create Conversation",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "    const response = pm.response.json();",
+                      "    if (response.sessionId) {",
+                      "        pm.environment.set('sessionId', response.sessionId);",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userId\": \"agent-123\",\n  \"metadata\": {\n    \"agentId\": \"{{agentId}}\",\n    \"source\": \"web\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{llm_base_url}}/api/v1/conversations",
+                  "host": [
+                    "{{llm_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "conversations"
+                  ]
+                },
+                "description": "Create a new conversation session with the LLM"
+              }
+            },
+            {
+              "name": "Send Message",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"message\": \"I want health insurance for myself. I'm 38 years old.\"\n}"
+                },
+                "url": {
+                  "raw": "{{llm_base_url}}/api/v1/conversations/{{sessionId}}/message",
+                  "host": [
+                    "{{llm_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "conversations",
+                    "{{sessionId}}",
+                    "message"
+                  ]
+                },
+                "description": "Send a message to the conversation and get AI response"
+              }
+            },
+            {
+              "name": "Get Summary",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{llm_base_url}}/api/v1/conversations/{{sessionId}}/summary",
+                  "host": [
+                    "{{llm_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "conversations",
+                    "{{sessionId}}",
+                    "summary"
+                  ]
+                },
+                "description": "Get extracted data summary from the conversation"
+              }
+            },
+            {
+              "name": "Confirm and Calculate Quote",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"confirmedData\": {\n    \"subscriber\": {\n      \"dateOfBirth\": \"1985-03-15\",\n      \"gender\": \"male\"\n    },\n    \"productType\": \"HEALTH_INDIVIDUAL\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{llm_base_url}}/api/v1/conversations/{{sessionId}}/confirm",
+                  "host": [
+                    "{{llm_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "conversations",
+                    "{{sessionId}}",
+                    "confirm"
+                  ]
+                },
+                "description": "Confirm extracted data and trigger quote calculation via pricing service"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "agent_base_url",
+      "value": "http://localhost:3003",
+      "type": "string"
+    },
+    {
+      "key": "enrollment_base_url",
+      "value": "http://localhost:3002",
+      "type": "string"
+    },
+    {
+      "key": "pricing_base_url",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "llm_base_url",
+      "value": "http://localhost:3004",
+      "type": "string"
+    }
+  ]
+}

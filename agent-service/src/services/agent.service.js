@@ -235,6 +235,48 @@ class AgentService {
       throw new Error('Failed to fetch enrollments from enrollment service');
     }
   }
+
+  /**
+   * Sync agent to enrollment service
+   * Called after registration or login to ensure agent exists in enrollment DB
+   * @param {Object} agent - Agent object from database
+   * @returns {boolean} - True if sync successful, false otherwise
+   */
+  async syncToEnrollmentService(agent) {
+    try {
+      const enrollmentServiceUrl = process.env.ENROLLMENT_SERVICE_URL || 'http://localhost:3002';
+
+      const response = await fetch(`${enrollmentServiceUrl}/api/v1/agents/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: agent.id,
+          first_name: agent.first_name,
+          last_name: agent.last_name,
+          email: agent.email,
+          phone: agent.phone_number,
+          license_number: agent.license_number,
+          agency_name: agent.agency_name || 'Default Agency',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to sync agent to enrollment service:', errorData);
+        // Don't throw - sync failure shouldn't block registration/login
+        return false;
+      }
+
+      console.log(`✅ Agent ${agent.id} synced to enrollment service`);
+      return true;
+    } catch (error) {
+      console.error('Error syncing agent to enrollment service:', error.message);
+      // Don't throw - sync failure shouldn't block registration/login
+      return false;
+    }
+  }
 }
 
 export default new AgentService();

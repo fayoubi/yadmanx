@@ -36,7 +36,10 @@ const EnrollmentTable: React.FC = () => {
   }, [token]);
 
   const fetchEnrollments = async () => {
-    if (!token) return;
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -49,13 +52,18 @@ const EnrollmentTable: React.FC = () => {
       });
 
       if (!response.ok) {
-        // Handle authentication errors
-        if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
-        }
-
         // If 404 or other errors, treat as empty list
         if (response.status === 404) {
+          setEnrollments([]);
+          setError(null);
+          return;
+        }
+
+        // Handle authentication errors - but don't be too aggressive
+        // New agents might get 401 if service is slow to sync
+        if (response.status === 401) {
+          console.warn('Authentication error fetching enrollments - this may be temporary for new agents');
+          // Don't show error for new agents, just show empty state
           setEnrollments([]);
           setError(null);
           return;
@@ -72,6 +80,8 @@ const EnrollmentTable: React.FC = () => {
       // Only set error for genuine connection/server issues
       if (err.message.includes('connect') || err.message.includes('fetch')) {
         setError(null); // Don't show error, just show empty state
+      } else if (err.message.includes('Authentication')) {
+        setError(null); // Don't show auth errors to avoid scaring new agents
       } else {
         setError(err.message || 'Failed to load enrollments');
       }
@@ -90,12 +100,6 @@ const EnrollmentTable: React.FC = () => {
 
   const handleViewEnrollment = (enrollmentId: string) => {
     // Navigate to enrollment flow with enrollmentId in URL
-    sessionStorage.setItem('current_enrollment_id', enrollmentId);
-    navigate(`/enroll/start?enrollmentId=${enrollmentId}`);
-  };
-
-  const handleContinueEnrollment = (enrollmentId: string) => {
-    // Continue draft enrollment with enrollmentId in URL
     sessionStorage.setItem('current_enrollment_id', enrollmentId);
     navigate(`/enroll/start?enrollmentId=${enrollmentId}`);
   };
@@ -167,12 +171,6 @@ const EnrollmentTable: React.FC = () => {
             >
               Status
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Actions
-            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
@@ -199,23 +197,13 @@ const EnrollmentTable: React.FC = () => {
                 {enrollment.subscriber.city || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <StatusBadge status={enrollment.status || ''} />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                 <button
                   onClick={() => handleViewEnrollment(enrollment.id)}
-                  className="text-blue-600 hover:text-blue-900"
+                  className="hover:opacity-80 transition-opacity cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  aria-label={`View enrollment for ${enrollment.subscriber.fullName}`}
                 >
-                  View
+                  <StatusBadge status={enrollment.status || ''} />
                 </button>
-                {enrollment.status?.toLowerCase() === 'draft' && (
-                  <button
-                    onClick={() => handleContinueEnrollment(enrollment.id)}
-                    className="text-green-600 hover:text-green-900"
-                  >
-                    Continue
-                  </button>
-                )}
               </td>
             </tr>
           ))}

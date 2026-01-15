@@ -3,8 +3,6 @@
 # YadmanX Startup Script
 # This script starts all backend services and the frontend application
 
-set -e  # Exit on error
-
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -29,10 +27,23 @@ if ! grep -qE "^CLAUDE_API_KEY=.+" llm-quote-service/.env; then
     exit 1
 fi
 
-echo -e "\n${GREEN}[1/4] Stopping any existing Docker containers...${NC}"
-docker-compose down 2>/dev/null || true
+echo -e "\n${GREEN}[1/6] Cleaning up any orphaned containers...${NC}"
+docker-compose down --remove-orphans 2>/dev/null || true
 
-echo -e "\n${GREEN}[2/4] Starting backend services with Docker Compose...${NC}"
+echo -e "\n${GREEN}[2/6] Removing any dangling containers...${NC}"
+docker container prune -f 2>/dev/null || true
+
+echo -e "\n${GREEN}[3/6] Checking for port conflicts...${NC}"
+# Check and kill processes on ports 3001-3004 (service ports)
+for port in 3001 3002 3003 3004; do
+    pid=$(lsof -ti :$port 2>/dev/null)
+    if [ ! -z "$pid" ]; then
+        echo -e "  ${YELLOW}Killing process on port $port (PID: $pid)${NC}"
+        kill -9 $pid 2>/dev/null || true
+    fi
+done
+
+echo -e "\n${GREEN}[4/6] Starting backend services with Docker Compose...${NC}"
 echo "  - Pricing Service (port 3001)"
 echo "  - Enrollment Service (port 3002)"
 echo "  - Agent Service (port 3003)"
@@ -40,9 +51,13 @@ echo "  - LLM Quote Service (port 3004)"
 echo "  - PostgreSQL databases"
 echo "  - Redis instances"
 
-docker-compose up -d
+if ! docker-compose up -d --remove-orphans; then
+    echo -e "${RED}ERROR: Failed to start Docker services${NC}"
+    echo -e "${YELLOW}Try running: docker-compose down --remove-orphans && docker-compose up -d${NC}"
+    exit 1
+fi
 
-echo -e "\n${GREEN}[3/4] Waiting for services to be ready...${NC}"
+echo -e "\n${GREEN}[5/6] Waiting for services to be ready...${NC}"
 
 # Function to wait for a service to be ready
 wait_for_service() {
@@ -87,14 +102,14 @@ wait_for_service "Enrollment Service" 3002
 wait_for_service "Agent Service" 3003
 wait_for_service "LLM Quote Service" 3004
 
-echo -e "\n${GREEN}[4/4] Starting frontend application...${NC}"
+echo -e "\n${GREEN}[6/6] Starting frontend application...${NC}"
 echo -e "${YELLOW}Note: Frontend will start on http://localhost:3000${NC}"
 echo -e "${YELLOW}Press Ctrl+C to stop all services${NC}\n"
 
 # Cleanup function
 cleanup() {
     echo -e "\n${YELLOW}Shutting down services...${NC}"
-    docker-compose down
+    docker-compose down --remove-orphans 2>/dev/null || true
     echo -e "${GREEN}All services stopped.${NC}"
 }
 

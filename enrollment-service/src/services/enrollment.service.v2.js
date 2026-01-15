@@ -29,17 +29,58 @@ class EnrollmentServiceV2 {
   }
 
   /**
+   * Ensure agent exists in local agents table
+   * Auto-creates from JWT token data if missing (lazy sync fallback)
+   * @param {string} agentId - UUID of the agent
+   * @param {Object} agentData - Agent data from JWT token
+   * @param {Object} client - Database client (within transaction)
+   * @private
+   */
+  async _ensureAgentExists(agentId, agentData, client) {
+    // Check if agent exists
+    const checkQuery = 'SELECT id FROM agents WHERE id = $1';
+    const checkResult = await client.query(checkQuery, [agentId]);
+
+    if (checkResult.rows.length === 0) {
+      // Agent doesn't exist - create from token data
+      console.warn(`Agent ${agentId} not found in enrollment DB - auto-creating from token data`);
+
+      const insertQuery = `
+        INSERT INTO agents (id, license_number, first_name, last_name, email, phone, agency_name)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (id) DO NOTHING
+      `;
+
+      await client.query(insertQuery, [
+        agentId,
+        agentData.licenseNumber || 'UNKNOWN',
+        agentData.firstName || 'Unknown',
+        agentData.lastName || 'Agent',
+        agentData.email || `agent-${agentId}@yadmanx.com`,
+        agentData.phoneNumber || '',
+        agentData.agencyName || 'Default Agency',
+      ]);
+
+      console.log(`✅ Agent ${agentId} auto-created in enrollment DB`);
+    }
+  }
+
+  /**
    * Initialize enrollment with customer data (new flow)
    * Creates customer record(s) and enrollment in a single transaction
    * @param {string} agentId - UUID of the agent creating the enrollment
    * @param {Object} personalInfo - Personal info object with subscriber and optional insured
+   * @param {Object} agentData - Agent data from JWT token (for lazy sync fallback)
    * @returns {Object} Object containing enrollment, subscriber, and insured (if applicable)
    */
-  async initialize(agentId, personalInfo) {
+  async initialize(agentId, personalInfo, agentData = {}) {
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
+
+      // Ensure agent exists (lazy sync fallback)
+      await this._ensureAgentExists(agentId, agentData, client);
 
       // Create or update subscriber
       const { coreFields: subscriberCoreFields, jsonbData: subscriberJsonbData } =
@@ -237,10 +278,10 @@ class EnrollmentServiceV2 {
         END as subscriber_birth_place,
         -- Status indicator based on data presence
         CASE
-          WHEN e.data ? 'beneficiaries' THEN 'completed'
-          WHEN e.data ? 'contribution' THEN 'in_progress'
-          WHEN e.subscriber_id IS NOT NULL THEN 'draft'
-          ELSE 'new'
+          WHEN e.data ? 'beneficiaries' THEN 'started'
+          WHEN e.data ? 'contribution' THEN 'started'
+          WHEN e.subscriber_id IS NOT NULL THEN 'started'
+          ELSE 'started'
         END as status
       FROM enrollments e
       LEFT JOIN customers c ON e.subscriber_id = c.id AND c.deleted_at IS NULL

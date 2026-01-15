@@ -42,7 +42,8 @@ class EnrollmentControllerV2 {
       }
 
       // Call service to create customer + enrollment
-      const result = await enrollmentService.initialize(agentId, personalInfo);
+      // Pass full agent data from JWT for lazy sync fallback
+      const result = await enrollmentService.initialize(agentId, personalInfo, req.agent);
 
       res.status(201).json({
         success: true,

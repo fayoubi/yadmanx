@@ -11,6 +11,8 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     switch (normalizedStatus) {
       case 'draft':
         return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'started':
+        return 'bg-blue-100 text-blue-700 border-blue-300';
       case 'submitted':
         return 'bg-blue-100 text-blue-700 border-blue-300';
       case 'in progress':

@@ -10,6 +10,7 @@ import fs from 'fs';
 
 import authRoutes from './routes/auth.routes.js';
 import agentRoutes from './routes/agent.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import pool from './config/database.js';
 import otpService from './services/otp.service.js';
@@ -102,6 +103,7 @@ app.get('/api/docs/', (req, res) => {
 // API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/agents', agentRoutes);
+app.use('/api/v1', adminRoutes);
 
 // Error handling
 app.use(notFoundHandler);
