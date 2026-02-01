@@ -32,4 +32,7 @@ router.put('/enrollments/:id', enrollmentController.updateEnrollment);
 // Delete enrollment (soft delete)
 router.delete('/enrollments/:id', enrollmentController.deleteEnrollment);
 
+// Submit enrollment for processing
+router.post('/enrollments/:id/submit', enrollmentController.submitEnrollment);
+
 export default router;
