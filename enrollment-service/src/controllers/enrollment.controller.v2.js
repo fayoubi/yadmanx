@@ -166,6 +166,34 @@ class EnrollmentControllerV2 {
       next(error);
     }
   }
+
+  /**
+   * Submit enrollment for processing
+   * POST /api/v1/enrollments/:id/submit
+   *
+   * Validates enrollment data and marks as submitted
+   *
+   * @throws {ApiError} 404 - Enrollment not found
+   * @throws {ApiError} 400 - Validation errors (missing data, invalid percentages)
+   * @throws {ApiError} 409 - Already submitted
+   * @throws {ApiError} 500 - Server error
+   */
+  async submitEnrollment(req, res, next) {
+    try {
+      const { id } = req.params;
+
+      // Call service to validate and submit
+      const enrollment = await enrollmentService.submit(id);
+
+      res.status(200).json({
+        success: true,
+        enrollment,
+        message: 'Enrollment submitted successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new EnrollmentControllerV2();

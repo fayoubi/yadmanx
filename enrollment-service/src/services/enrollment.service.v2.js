@@ -278,6 +278,7 @@ class EnrollmentServiceV2 {
         END as subscriber_birth_place,
         -- Status indicator based on data presence
         CASE
+          WHEN e.data ? 'submittedAt' THEN 'submitted'
           WHEN e.data ? 'beneficiaries' THEN 'started'
           WHEN e.data ? 'contribution' THEN 'started'
           WHEN e.subscriber_id IS NOT NULL THEN 'started'
@@ -500,6 +501,140 @@ class EnrollmentServiceV2 {
     }
 
     return result.rows[0];
+  }
+
+  /**
+   * Submit enrollment for processing
+   * Validates all required data and marks enrollment as submitted
+   *
+   * Validation Rules:
+   * 1. Enrollment must exist and not be deleted
+   * 2. Subscriber data must exist (subscriber_id must be set)
+   * 3. Contribution data must exist in data.contribution
+   * 4. At least one beneficiary must exist in data.beneficiaries
+   * 5. Beneficiary percentages must total exactly 100%
+   * 6. Enrollment must not already be submitted (data.submittedAt must not exist)
+   *
+   * @param {string} enrollmentId - UUID of the enrollment
+   * @returns {Object} The submitted enrollment with submittedAt timestamp
+   * @throws {ApiError} 404 - Enrollment not found
+   * @throws {ApiError} 400 - Validation errors
+   * @throws {ApiError} 409 - Already submitted
+   */
+  async submit(enrollmentId) {
+    // Step 1: Fetch enrollment with all related data
+    const query = `
+      SELECT
+        e.id,
+        e.agent_id,
+        e.subscriber_id,
+        e.insured_id,
+        e.data,
+        e.created_at,
+        e.updated_at
+      FROM enrollments e
+      WHERE e.id = $1 AND e.deleted_at IS NULL
+    `;
+
+    const result = await pool.query(query, [enrollmentId]);
+
+    if (result.rows.length === 0) {
+      throw new ApiError(404, 'Enrollment not found');
+    }
+
+    const enrollment = result.rows[0];
+    const data = enrollment.data || {};
+
+    // Step 2: Check if already submitted
+    if (data.submittedAt) {
+      throw new ApiError(409, 'Enrollment has already been submitted');
+    }
+
+    // Step 3: Validate subscriber exists
+    if (!enrollment.subscriber_id) {
+      throw new ApiError(400, 'Missing required data: subscriber information');
+    }
+
+    // Step 4: Validate contribution data
+    if (!data.contribution || !data.contribution.amount) {
+      throw new ApiError(400, 'Missing required data: contribution information');
+    }
+
+    // Additional contribution validation
+    if (!data.contribution.frequency) {
+      throw new ApiError(400, 'Missing required data: contribution frequency');
+    }
+
+    if (!data.contribution.paymentMode || !data.contribution.paymentMode.mode) {
+      throw new ApiError(400, 'Missing required data: payment method');
+    }
+
+    // Step 5: Validate beneficiaries
+    if (!data.beneficiaries || !Array.isArray(data.beneficiaries) || data.beneficiaries.length === 0) {
+      throw new ApiError(400, 'Missing required data: at least one beneficiary is required');
+    }
+
+    // Step 6: Validate beneficiary data completeness
+    for (let i = 0; i < data.beneficiaries.length; i++) {
+      const beneficiary = data.beneficiaries[i];
+
+      // Support both camelCase and snake_case naming conventions
+      const firstName = beneficiary.firstName || beneficiary.first_name;
+      const lastName = beneficiary.lastName || beneficiary.last_name;
+
+      if (!firstName || !lastName) {
+        throw new ApiError(400, `Beneficiary ${i + 1}: First name and last name are required`);
+      }
+
+      // CIN is optional - no validation required
+
+      // Birth date can be in multiple formats/locations
+      const birthDate = beneficiary.birthDate || beneficiary.date_of_birth;
+      if (!birthDate) {
+        throw new ApiError(400, `Beneficiary ${i + 1}: Birth date is required`);
+      }
+
+      if (!beneficiary.relationship) {
+        throw new ApiError(400, `Beneficiary ${i + 1}: Relationship is required`);
+      }
+
+      if (beneficiary.percentage === undefined || beneficiary.percentage === null) {
+        throw new ApiError(400, `Beneficiary ${i + 1}: Percentage is required`);
+      }
+
+      if (beneficiary.percentage < 0 || beneficiary.percentage > 100) {
+        throw new ApiError(400, `Beneficiary ${i + 1}: Percentage must be between 0 and 100`);
+      }
+    }
+
+    // Step 7: Validate total percentage equals 100%
+    const totalPercentage = data.beneficiaries.reduce((sum, b) => sum + (b.percentage || 0), 0);
+
+    if (Math.abs(totalPercentage - 100) > 0.01) { // Allow for tiny floating point errors
+      throw new ApiError(400, `Beneficiary percentages must total 100% (current total: ${totalPercentage}%)`);
+    }
+
+    // Step 8: Mark as submitted by adding submittedAt timestamp
+    const updatedData = {
+      ...data,
+      submittedAt: new Date().toISOString()
+    };
+
+    const updateQuery = `
+      UPDATE enrollments
+      SET
+        data = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING id, agent_id, subscriber_id, insured_id, data, created_at, updated_at
+    `;
+
+    const updateResult = await pool.query(updateQuery, [
+      JSON.stringify(updatedData),
+      enrollmentId
+    ]);
+
+    return updateResult.rows[0];
   }
 }
 
